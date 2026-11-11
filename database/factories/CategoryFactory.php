@@ -13,7 +13,7 @@ class CategoryFactory extends Factory
 {
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = fake()->unique()->word().' '.fake()->word();
 
         return [
             'name_en' => Str::title($name),

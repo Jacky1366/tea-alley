@@ -16,7 +16,7 @@ class MenuItemFactory extends Factory
     {
         return [
             'category_id' => Category::factory(),
-            'name_en' => Str::title(fake()->words(3, true)),
+            'name_en' => Str::title(fake()->word().' '.fake()->word().' '.fake()->word()),
             'name_zh' => '飲品'.fake()->numberBetween(1, 999),
             'description' => fake()->optional()->sentence(),
             'price_cents' => fake()->numberBetween(450, 800),
