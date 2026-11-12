@@ -27,6 +27,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->brandName('Tea Alley 茶巷')
             // No Filament login page: staff sign in through the app's Fortify login (2FA, passkeys),
             // and guests hitting /admin are redirected to route('login').
             ->colors([
