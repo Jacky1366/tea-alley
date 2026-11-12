@@ -20,10 +20,11 @@ php artisan key:generate
 mysql -u root -e "CREATE DATABASE tea_alley"
 
 php artisan migrate:fresh --seed
+php artisan storage:link      # menu photos are served from storage/app/public
 npm run build
 ```
 
-Herd serves the app at http://tea-alley.test. Use `npm run dev` instead of `npm run build` while working on the frontend.
+Herd serves the app at http://tea-alley.test. The admin panel is at http://tea-alley.test/admin (manager and admin accounts only; sign in through the normal login page). Use `npm run dev` instead of `npm run build` while working on the frontend.
 
 ## Demo accounts
 
