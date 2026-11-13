@@ -15,6 +15,9 @@ class StoreHour extends Model
     /** @use HasFactory<StoreHourFactory> */
     use HasFactory;
 
+    /** Indexed by day_of_week (0 = Sunday, matching Carbon). */
+    public const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
     protected $fillable = [
         'day_of_week',
         'opens_at',

@@ -2,7 +2,9 @@
 
 use App\Models\Category;
 use App\Models\MenuItem;
+use App\Services\OrderingWindow;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
@@ -88,6 +90,28 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         return $query->orderBy('id')->get();
     }
 
+    /**
+     * Online ordering status for the banner. Times are in the display timezone.
+     *
+     * @return array{state: 'open'|'closed'|'unavailable', at: ?CarbonImmutable}
+     */
+    #[Computed]
+    public function ordering(): array
+    {
+        $window = app(OrderingWindow::class);
+        $now = now();
+
+        if (($endsAt = $window->orderingEndsAt($now)) !== null) {
+            return ['state' => 'open', 'at' => $endsAt];
+        }
+
+        if (($opensAt = $window->nextOpening($now)) !== null) {
+            return ['state' => 'closed', 'at' => $opensAt];
+        }
+
+        return ['state' => 'unavailable', 'at' => null];
+    }
+
     public function selectCategory(string $slug): void
     {
         $this->category = $slug;
@@ -109,6 +133,28 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         <flux:heading size="xl" level="1">{{ __('Menu') }} 菜單</flux:heading>
         <flux:text class="mt-1">{{ __('Freshly brewed bubble tea, made to order.') }}</flux:text>
     </div>
+
+    {{-- Online ordering status. The menu stays browsable in every state. --}}
+    @switch($this->ordering['state'])
+        @case('open')
+            <flux:callout icon="clock" color="green" data-test="ordering-open">
+                <flux:callout.text>
+                    {{ __('Online ordering is open until :time', ['time' => $this->ordering['at']?->format('g:i A')]) }}
+                </flux:callout.text>
+            </flux:callout>
+            @break
+        @case('closed')
+            <flux:callout icon="clock" color="amber" data-test="ordering-closed">
+                <flux:callout.text>
+                    {{ __('Online ordering opens :time', ['time' => $this->ordering['at']?->format('D g:i A')]) }}
+                </flux:callout.text>
+            </flux:callout>
+            @break
+        @default
+            <flux:callout icon="clock" color="zinc" data-test="ordering-unavailable">
+                <flux:callout.text>{{ __('Online ordering is currently unavailable') }}</flux:callout.text>
+            </flux:callout>
+    @endswitch
 
     {{-- Category tabs: horizontally scrollable on phones --}}
     <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="{{ __('Categories') }}">

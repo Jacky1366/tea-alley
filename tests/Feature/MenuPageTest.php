@@ -3,6 +3,7 @@
 use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\MenuSeeder;
 use Database\Seeders\RoleSeeder;
 use Livewire\Livewire;
@@ -174,4 +175,60 @@ describe('header links', function () {
             ->assertSee('Dashboard')
             ->assertSee('/admin', escape: false);
     })->with(['manager', 'admin']);
+});
+
+describe('online ordering banner', function () {
+    beforeEach(function () {
+        menuFixture();
+        // Wednesday 11:00-21:00, cutoff 15: ordering until 20:45. Every other day stays closed.
+        setStoreHours([3 => ['11:00:00', '21:00:00']]);
+    });
+
+    test('shows when ordering ends while it is open', function () {
+        // Wed Nov 18, 2026 15:00 in Vancouver.
+        $this->travelTo(CarbonImmutable::parse('2026-11-18 15:00:00', 'America/Vancouver'));
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-test="ordering-open"', escape: false)
+            ->assertSee('Online ordering is open until 8:45 PM')
+            ->assertSee('Oolong Classic');
+    });
+
+    test('shows the next opening in Vancouver time while closed', function () {
+        // Wed Nov 18, 2026 21:00 in Vancouver. Thursday stays closed, so the next opening is Friday.
+        $this->travelTo(CarbonImmutable::parse('2026-11-18 21:00:00', 'America/Vancouver'));
+        setStoreHours([5 => ['11:00:00', '21:00:00']]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-test="ordering-closed"', escape: false)
+            ->assertSee('Online ordering opens Fri 11:00 AM')
+            ->assertSee('Oolong Classic');
+    });
+
+    test('says ordering is unavailable when no day is open', function () {
+        setStoreHours(array_fill(0, 7, null));
+        $this->travelTo(CarbonImmutable::parse('2026-11-18 15:00:00', 'America/Vancouver'));
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-test="ordering-unavailable"', escape: false)
+            ->assertSee('Online ordering is currently unavailable')
+            ->assertSee('Oolong Classic');
+    });
+
+    test('search and filters still work while ordering is closed', function () {
+        setStoreHours(array_fill(0, 7, null));
+
+        Livewire::test('pages::menu')
+            ->set('search', 'mango')
+            ->assertSee('Mango Splash')
+            ->assertDontSee('Oolong Classic')
+            ->set('search', '')
+            ->call('selectCategory', 'teas')
+            ->set('sort', 'price_desc')
+            ->assertSeeInOrder(['Jasmine Dream', 'Oolong Classic'])
+            ->assertSee('Online ordering is currently unavailable');
+    });
 });

@@ -13,7 +13,6 @@ use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
-use App\Models\User;
 use App\Support\Money;
 use Database\Seeders\MenuSeeder;
 use Database\Seeders\RoleSeeder;
@@ -23,11 +22,6 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
-
-function userWithRole(string $role): User
-{
-    return User::factory()->create()->assignRole($role);
-}
 
 /**
  * A small menu so list pages render real rows (category relation, counts, prices).
