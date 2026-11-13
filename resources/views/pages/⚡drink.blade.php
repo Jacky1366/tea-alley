@@ -98,7 +98,10 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
     }
 
     /**
-     * Server-rendered starting total, so the price shows before Alpine runs. Display only.
+     * Server-rendered starting total, so the price shows before Alpine runs.
+     *
+     * DISPLAY-ONLY PREVIEW: never stored or charged. PricingService is the source of
+     * truth for every amount that is (see CLAUDE.md, Data rules).
      */
     public function displayTotal(): string
     {
@@ -199,6 +202,11 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
         </flux:callout>
     @enderror
 
+    {{--
+        DISPLAY-ONLY PREVIEW: the Alpine totalCents below is a live estimate for the customer.
+        It is never sent to the server, stored, or charged. PricingService is the source of
+        truth for every amount that is (see CLAUDE.md, Data rules).
+    --}}
     <form
         wire:submit="addToOrder"
         class="flex flex-col gap-6"
