@@ -172,7 +172,8 @@ test('idempotency keys are unique', function () {
 });
 
 test('store hours days of week are unique', function () {
-    StoreHour::factory()->create(['day_of_week' => 1]);
+    // The insert_default_store_hours migration already created a row for every day.
+    expect(StoreHour::where('day_of_week', 1)->exists())->toBeTrue();
 
     expect(fn () => StoreHour::factory()->create(['day_of_week' => 1]))
         ->toThrow(UniqueConstraintViolationException::class);
@@ -218,6 +219,8 @@ test('database defaults are readable right after create', function () {
         'idempotency_key' => str_repeat('b', 64),
     ]);
     $promo = PromoCode::create(['code' => 'SPRING', 'type' => PromoType::Percent, 'value' => 10]);
+    // Every day already has a row from the insert_default_store_hours migration; free up Wednesday.
+    StoreHour::where('day_of_week', 3)->delete();
     $hours = StoreHour::create(['day_of_week' => 3, 'opens_at' => '11:00:00', 'closes_at' => '21:00:00']);
 
     expect($order->status)->toBe(OrderStatus::PendingPayment)
@@ -246,8 +249,10 @@ test('order timestamps are cast to dates', function () {
 test('the database seeder creates store hours for every weekday', function () {
     $this->seed(DatabaseSeeder::class);
 
+    // The seeder updates the 7 closed rows from the migration instead of adding new ones.
     expect(StoreHour::count())->toBe(7)
-        ->and(StoreHour::orderBy('day_of_week')->pluck('day_of_week')->all())->toBe([0, 1, 2, 3, 4, 5, 6]);
+        ->and(StoreHour::orderBy('day_of_week')->pluck('day_of_week')->all())->toBe([0, 1, 2, 3, 4, 5, 6])
+        ->and(StoreHour::where('is_closed', true)->count())->toBe(0);
 });
 
 test('the store hours seeder can run twice', function () {

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\StoreHour;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +46,29 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A user with one role. Run RoleSeeder first.
+ */
+function userWithRole(string $role): User
 {
-    // ..
+    return User::factory()->create()->assignRole($role);
+}
+
+/**
+ * Set store hours by updating the 7 rows the insert_default_store_hours migration
+ * created. Never inserts rows: day_of_week is unique.
+ *
+ * @param  array<int, array{0: string, 1: string}|null>  $days  day_of_week => [opens_at, closes_at], or null for closed.
+ *                                                              Days left out stay as they are (closed by default).
+ */
+function setStoreHours(array $days, int $cutoffMinutes = 15): void
+{
+    foreach ($days as $day => $hours) {
+        StoreHour::where('day_of_week', $day)->firstOrFail()->update([
+            'opens_at' => $hours[0] ?? null,
+            'closes_at' => $hours[1] ?? null,
+            'is_closed' => $hours === null,
+            'ordering_cutoff_minutes' => $cutoffMinutes,
+        ]);
+    }
 }

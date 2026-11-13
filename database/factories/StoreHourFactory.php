@@ -6,6 +6,11 @@ use App\Models\StoreHour;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
+ * Note: the insert_default_store_hours migration creates a row for every weekday and
+ * day_of_week is unique, so create() fails unless that day's row was deleted first.
+ * To set a day's hours in tests, update the existing row, or use make() for unsaved
+ * instances.
+ *
  * @extends Factory<StoreHour>
  */
 class StoreHourFactory extends Factory

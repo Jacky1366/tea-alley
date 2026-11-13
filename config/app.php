@@ -69,6 +69,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Times are stored in UTC and shown to people in the store's local time.
+    | store_hours times are wall-clock times in this zone. It's a business
+    | rule, not a per-environment setting, so it has no env variable.
+    |
+    */
+
+    'display_timezone' => 'America/Vancouver',
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
