@@ -3,10 +3,12 @@
 use App\Models\MenuItem;
 use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
+use App\Services\Cart;
 use App\Services\ModifierValidator;
 use App\Services\OrderingWindow;
 use App\Support\Money;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -20,7 +22,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
 
     /**
      * Group id => chosen option id (single-select; '' means "None") or list of option ids (multi-select).
-     * Client-controlled, so never trusted: addToOrder() ignores the group keys and ModifierValidator
+     * Client-controlled, so never trusted: addToCart() ignores the group keys and ModifierValidator
      * checks every id against the database.
      *
      * @var array<array-key, mixed>
@@ -28,8 +30,6 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
     public array $selected = [];
 
     public int $quantity = 1;
-
-    public bool $confirmed = false;
 
     public function mount(MenuItem $item): void
     {
@@ -116,18 +116,28 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
     }
 
     /**
-     * Validate the selection on the server. Takes no arguments: everything comes from
-     * component state, and ModifierValidator re-checks all of it against the database.
-     * T1-4 replaces the confirmation with adding to the cart.
+     * Add the drink to the cart. Takes no arguments: everything comes from component state.
+     * The ordering window is checked here on the server (the disabled button is only a hint),
+     * then ModifierValidator re-checks the selection against the database.
      */
-    public function addToOrder(): void
+    public function addToCart(): void
     {
-        $this->confirmed = false;
+        $cart = app(Cart::class);
+
         $this->resetErrorBag();
 
-        app(ModifierValidator::class)->validate($this->item, $this->chosenOptionIds(), $this->quantity);
+        if (! app(OrderingWindow::class)->isOpen(now())) {
+            throw ValidationException::withMessages([
+                'ordering' => __('Online ordering is closed right now, so drinks can\'t be added to the cart.'),
+            ]);
+        }
 
-        $this->confirmed = true;
+        $cart->add(app(ModifierValidator::class)->validate($this->item, $this->chosenOptionIds(), $this->quantity));
+
+        $this->dispatch('cart-updated');
+        session()->flash('cart-status', __(':drink added to cart.', ['drink' => $this->item->name_en]));
+
+        $this->redirectRoute('home', navigate: true);
     }
 
     /**
@@ -208,7 +218,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
         truth for every amount that is (see CLAUDE.md, Data rules).
     --}}
     <form
-        wire:submit="addToOrder"
+        wire:submit="addToCart"
         class="flex flex-col gap-6"
         x-data="{
             base: @js($this->priceData['base']),
@@ -319,14 +329,16 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
             </flux:callout>
         @endif
 
-        <flux:button type="submit" variant="primary" class="w-full" :disabled="! $this->canOrder" data-test="add-button">
-            {{ __('Add to order') }}
-        </flux:button>
+        @foreach (['ordering', 'cart'] as $errorKey)
+            @error($errorKey)
+                <flux:callout variant="danger" icon="x-circle" data-test="error-{{ $errorKey }}">
+                    <flux:callout.text>{{ $message }}</flux:callout.text>
+                </flux:callout>
+            @enderror
+        @endforeach
 
-        @if ($confirmed)
-            <flux:callout icon="check-circle" color="green" data-test="confirmed">
-                <flux:callout.text>{{ __('Your drink is ready to add. The cart is coming soon.') }}</flux:callout.text>
-            </flux:callout>
-        @endif
+        <flux:button type="submit" variant="primary" class="w-full" icon="shopping-bag" :disabled="! $this->canOrder" data-test="add-button">
+            {{ __('Add to cart') }}
+        </flux:button>
     </form>
 </div>

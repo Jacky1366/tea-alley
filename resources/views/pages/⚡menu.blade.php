@@ -111,6 +111,15 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
     </div>
 
     {{-- Online ordering status. The menu stays browsable in every state. --}}
+    @if (session('cart-status'))
+        <flux:callout icon="check-circle" color="green" data-test="cart-status">
+            <flux:callout.text>
+                {{ session('cart-status') }}
+                <flux:link :href="route('cart')" wire:navigate>{{ __('View cart') }}</flux:link>
+            </flux:callout.text>
+        </flux:callout>
+    @endif
+
     <x-ordering-banner />
 
     {{-- Category tabs: horizontally scrollable on phones --}}
