@@ -2,9 +2,7 @@
 
 use App\Models\Category;
 use App\Models\MenuItem;
-use App\Services\OrderingWindow;
 use App\Support\Money;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
@@ -90,28 +88,6 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         return $query->orderBy('id')->get();
     }
 
-    /**
-     * Online ordering status for the banner. Times are in the display timezone.
-     *
-     * @return array{state: 'open'|'closed'|'unavailable', at: ?CarbonImmutable}
-     */
-    #[Computed]
-    public function ordering(): array
-    {
-        $window = app(OrderingWindow::class);
-        $now = now();
-
-        if (($endsAt = $window->orderingEndsAt($now)) !== null) {
-            return ['state' => 'open', 'at' => $endsAt];
-        }
-
-        if (($opensAt = $window->nextOpening($now)) !== null) {
-            return ['state' => 'closed', 'at' => $opensAt];
-        }
-
-        return ['state' => 'unavailable', 'at' => null];
-    }
-
     public function selectCategory(string $slug): void
     {
         $this->category = $slug;
@@ -135,26 +111,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
     </div>
 
     {{-- Online ordering status. The menu stays browsable in every state. --}}
-    @switch($this->ordering['state'])
-        @case('open')
-            <flux:callout icon="clock" color="green" data-test="ordering-open">
-                <flux:callout.text>
-                    {{ __('Online ordering is open until :time', ['time' => $this->ordering['at']?->format('g:i A')]) }}
-                </flux:callout.text>
-            </flux:callout>
-            @break
-        @case('closed')
-            <flux:callout icon="clock" color="amber" data-test="ordering-closed">
-                <flux:callout.text>
-                    {{ __('Online ordering opens :time', ['time' => $this->ordering['at']?->format('D g:i A')]) }}
-                </flux:callout.text>
-            </flux:callout>
-            @break
-        @default
-            <flux:callout icon="clock" color="zinc" data-test="ordering-unavailable">
-                <flux:callout.text>{{ __('Online ordering is currently unavailable') }}</flux:callout.text>
-            </flux:callout>
-    @endswitch
+    <x-ordering-banner />
 
     {{-- Category tabs: horizontally scrollable on phones --}}
     <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="{{ __('Categories') }}">
@@ -208,7 +165,14 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         {{-- Mobile-first: one column on phones, grid from sm up --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-test="menu-grid">
             @foreach ($this->drinks as $drink)
-                <flux:card class="flex flex-col gap-3 overflow-hidden p-0!" wire:key="drink-{{ $drink->id }}" data-test="drink-card">
+                <a
+                    href="{{ route('menu.show', $drink) }}"
+                    wire:navigate
+                    wire:key="drink-{{ $drink->id }}"
+                    class="block rounded-xl transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    data-test="drink-link"
+                >
+                <flux:card class="flex h-full flex-col gap-3 overflow-hidden p-0!" data-test="drink-card">
                     @if ($photo = $this->photoUrl($drink))
                         <img src="{{ $photo }}" alt="{{ $drink->name_en }}" class="aspect-square w-full object-cover" loading="lazy">
                     @else
@@ -230,6 +194,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
                         </div>
                     </div>
                 </flux:card>
+                </a>
             @endforeach
         </div>
     @endif
