@@ -3,6 +3,7 @@
 use App\Models\MenuItem;
 use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
+use App\Services\Cart;
 use Carbon\CarbonImmutable;
 use Database\Seeders\MenuSeeder;
 use Illuminate\Support\Js;
@@ -256,29 +257,71 @@ describe('options UI', function () {
 });
 
 describe('submitting', function () {
-    test('a valid selection passes server validation', function () {
+    test('a valid selection is added to the cart and returns to the menu', function () {
         builder($this->drink)
             ->set('selected.'.$this->size->id, (string) opt('Large'))
             ->set('selected.'.$this->milk->id, (string) opt('Oat'))
             ->set('quantity', 3)
-            ->call('addToOrder')
+            ->call('addToCart')
             ->assertHasNoErrors()
-            ->assertSet('confirmed', true)
-            ->assertSee('Your drink is ready to add.');
+            ->assertDispatched('cart-updated')
+            ->assertRedirect(route('home'));
+
+        $ids = [opt('Large'), opt('Pearls'), opt('Pudding'), opt('Oat')];
+        sort($ids);
+
+        expect(session('cart'))->toBe([
+            $this->drink->id.':'.implode(',', $ids) => ['menu_item_id' => $this->drink->id, 'option_ids' => $ids, 'quantity' => 3],
+        ])->and(session('cart-status'))->toBe('Builder Tea added to cart.');
+    });
+
+    test('the menu shows the "added to cart" message after adding', function () {
+        builder($this->drink)->call('addToCart')->assertRedirect(route('home'));
+
+        $this->get(route('home'))
+            ->assertSee('data-test="cart-status"', escape: false)
+            ->assertSee('Builder Tea added to cart.');
     });
 
     test('choosing "None" in an optional single-select group is valid', function () {
         builder($this->drink)
             ->set('selected.'.$this->milk->id, '')
-            ->call('addToOrder')
+            ->call('addToCart')
             ->assertHasNoErrors()
-            ->assertSet('confirmed', true);
+            ->assertRedirect(route('home'));
+
+        expect(app(Cart::class)->count())->toBe(1);
+    });
+
+    test('adding is blocked on the server while ordering is closed', function () {
+        $component = builder($this->drink);
+
+        setStoreHours([3 => ['11:00:00', '21:00:00']]);
+        $this->travelTo(CarbonImmutable::parse('2026-11-18 22:00:00', 'America/Vancouver'));
+
+        // Call the action directly, as a tampered request would; the disabled button is only a hint.
+        $component->call('addToCart')
+            ->assertHasErrors(['ordering'])
+            ->assertNoRedirect()
+            ->assertSee('Online ordering is closed right now');
+
+        expect(session('cart'))->toBeNull();
+    });
+
+    test('cart limits are shown as errors on the drink page', function () {
+        builder($this->drink)->set('quantity', 10)->call('addToCart')->assertHasNoErrors();
+
+        builder($this->drink)->set('quantity', 1)->call('addToCart')
+            ->assertHasErrors(['quantity'])
+            ->assertNoRedirect();
+
+        expect(app(Cart::class)->count())->toBe(10);
     });
 
     test('errors show under their group', function () {
         builder($this->drink)
             ->set('selected.'.$this->size->id, '')
-            ->call('addToOrder')
+            ->call('addToCart')
             ->assertHasErrors(['selected.'.$this->size->id])
             ->assertSee('data-test="error-group-'.$this->size->id.'"', escape: false)
             ->assertSee('Choose an option for Size.');
@@ -291,9 +334,11 @@ describe('tampered requests are rejected', function () {
 
         $tamper($component, $this);
 
-        $component->call('addToOrder')
+        $component->call('addToCart')
             ->assertHasErrors([str_replace(['{size}', '{toppings}'], [$this->size->id, $this->toppings->id], $errorKey)])
-            ->assertSet('confirmed', false);
+            ->assertNoRedirect();
+
+        expect(session('cart'))->toBeNull();
     })->with([
         'option from another drink, hidden under the size group key' => [
             fn ($c, $t) => $c->set('selected.'.$t->size->id, opt('Foreign')), 'selected',
@@ -342,9 +387,11 @@ describe('tampered requests are rejected', function () {
 
         $this->drink->update(['is_available' => false]);
 
-        $component->call('addToOrder')
+        $component->call('addToCart')
             ->assertHasErrors(['item'])
-            ->assertSet('confirmed', false);
+            ->assertNoRedirect();
+
+        expect(session('cart'))->toBeNull();
     });
 
     test('an option sold out after the page loaded is rejected on submit', function () {
@@ -352,8 +399,10 @@ describe('tampered requests are rejected', function () {
 
         ModifierOption::whereKey(opt('Pearls'))->update(['is_available' => false]);
 
-        $component->call('addToOrder')
+        $component->call('addToCart')
             ->assertHasErrors(['selected.'.$this->toppings->id])
-            ->assertSet('confirmed', false);
+            ->assertNoRedirect();
+
+        expect(session('cart'))->toBeNull();
     });
 });

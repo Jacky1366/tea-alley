@@ -55,5 +55,11 @@ If anything fails, stop and report it.
 - CI uses MySQL 8.4: the workflow's `DB_*` env overrides `phpunit.xml`.
 - Tests must pass on both.
 
+## Manual and browser testing
+- Never use the `tea_alley` database for browser checks or manual testing. Always use a throwaway database: create it, run `migrate:fresh --seed`, and drop it afterwards.
+- Before any write (form submit, Livewire action, login), confirm the server is using the throwaway database. For example, check for data that only the throwaway database has.
+- Don't use `php artisan serve` to point at another database: it passes only an allow-list of env vars to the server, so a `DB_DATABASE` override is silently ignored and `.env`'s `tea_alley` is used. Run PHP's built-in server from `public/` instead, which inherits env vars:
+  `php -S 127.0.0.1:8123 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`
+
 ## Known environment issue
 Norton antivirus has quarantined project files before, including `phpstan.neon` (a false positive, IDP.Generic). If a file disappears or can't be recreated (Permission denied / EPERM), tell Jacky to check Norton Quarantine. Don't try to work around it.

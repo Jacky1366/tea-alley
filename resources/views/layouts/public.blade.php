@@ -14,6 +14,7 @@
             <flux:spacer />
 
             <nav class="flex items-center gap-2" data-test="public-nav">
+                <livewire:cart-badge />
                 @auth
                     @if (auth()->user()->canManageMenu())
                         <flux:button href="/admin" variant="ghost" size="sm" icon="cog-6-tooth">
