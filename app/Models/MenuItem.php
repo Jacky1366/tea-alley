@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Closure;
 use Database\Factories\MenuItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MenuItem extends Model
 {
@@ -37,6 +39,26 @@ class MenuItem extends Model
             'prep_minutes' => 'integer',
             'is_available' => 'boolean',
             'sort_order' => 'integer',
+        ];
+    }
+
+    /**
+     * Everything the drink builder and ModifierValidator need, in display order:
+     * groups by pivot sort_order then group sort_order, options by sort_order.
+     * Use with with() or loadMissing() so nothing is lazy loaded.
+     *
+     * @return array<array-key, Closure|string> a plain relation name, or relation name => constraint
+     */
+    public static function builderRelations(): array
+    {
+        return [
+            'category',
+            'modifierGroups' => fn (BelongsToMany $query) => $query
+                ->orderBy('modifier_groups.sort_order')
+                ->orderBy('modifier_groups.id'),
+            'modifierGroups.options' => fn (HasMany $query) => $query
+                ->orderBy('sort_order')
+                ->orderBy('id'),
         ];
     }
 

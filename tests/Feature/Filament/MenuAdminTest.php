@@ -7,6 +7,7 @@ use App\Filament\Resources\MenuItems\MenuItemResource;
 use App\Filament\Resources\MenuItems\Pages\CreateMenuItem;
 use App\Filament\Resources\MenuItems\Pages\EditMenuItem;
 use App\Filament\Resources\ModifierGroups\ModifierGroupResource;
+use App\Filament\Resources\ModifierGroups\Pages\CreateModifierGroup;
 use App\Filament\Resources\ModifierGroups\Pages\EditModifierGroup;
 use App\Filament\Resources\ModifierGroups\RelationManagers\OptionsRelationManager;
 use App\Models\Category;
@@ -231,5 +232,55 @@ describe('deleting categories', function () {
             ->assertNotNotified('Category still has drinks');
 
         $this->assertModelMissing($category);
+    });
+});
+
+describe('modifier group limits', function () {
+    beforeEach(function () {
+        $this->actingAs(userWithRole('manager'));
+    });
+
+    test('invalid min and max selections are rejected', function (int $min, int $max) {
+        Livewire::test(CreateModifierGroup::class)
+            ->fillForm([
+                'name_en' => 'Toppings',
+                'name_zh' => '加料',
+                'min_select' => $min,
+                'max_select' => $max,
+                'sort_order' => 1,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['max_select']);
+
+        expect(ModifierGroup::count())->toBe(0);
+    })->with([
+        'min greater than max' => [2, 1],
+        'max of 0' => [0, 0],
+    ]);
+
+    test('min equal to max is accepted', function () {
+        Livewire::test(CreateModifierGroup::class)
+            ->fillForm([
+                'name_en' => 'Toppings',
+                'name_zh' => '加料',
+                'min_select' => 2,
+                'max_select' => 2,
+                'sort_order' => 1,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        expect(ModifierGroup::where('min_select', 2)->where('max_select', 2)->exists())->toBeTrue();
+    });
+
+    test('editing a group to min greater than max is rejected', function () {
+        $group = ModifierGroup::factory()->create(['min_select' => 0, 'max_select' => 3]);
+
+        Livewire::test(EditModifierGroup::class, ['record' => $group->getRouteKey()])
+            ->fillForm(['min_select' => 4])
+            ->call('save')
+            ->assertHasFormErrors(['max_select']);
+
+        expect($group->fresh()?->min_select)->toBe(0);
     });
 });

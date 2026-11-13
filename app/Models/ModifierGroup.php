@@ -33,6 +33,16 @@ class ModifierGroup extends Model
     }
 
     /**
+     * The fewest options a customer must choose in this group. A required group needs
+     * at least one even if min_select is 0. The drink builder (which offers "None" only
+     * when this is 0) and ModifierValidator both use this, so they can't disagree.
+     */
+    public function effectiveMin(): int
+    {
+        return max($this->min_select, $this->is_required ? 1 : 0);
+    }
+
+    /**
      * @return HasMany<ModifierOption, $this>
      */
     public function options(): HasMany
