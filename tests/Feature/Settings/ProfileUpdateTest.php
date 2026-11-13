@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -107,6 +108,25 @@ class ProfileUpdateTest extends TestCase
 
         $this->assertNull($user->fresh());
         $this->assertFalse(auth()->check());
+    }
+
+    public function test_user_with_orders_cannot_delete_their_account(): void
+    {
+        $user = User::factory()->create();
+        Order::factory()->for($user)->create();
+
+        $this->actingAs($user);
+
+        Livewire::test('pages::settings.delete-user-modal')
+            ->set('password', 'password')
+            ->call('deleteUser')
+            ->assertHasErrors(['account'])
+            ->assertNoRedirect()
+            ->assertSee('Your account has order history, so it cannot be deleted.');
+
+        $this->assertNotNull($user->fresh());
+        $this->assertTrue(auth()->check());
+        $this->assertTrue(auth()->user()?->is($user));
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

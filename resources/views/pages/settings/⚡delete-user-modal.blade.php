@@ -3,6 +3,7 @@
 use App\Concerns\PasswordValidationRules;
 use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 new class extends Component {
@@ -19,7 +20,17 @@ new class extends Component {
             'password' => $this->currentPasswordRules(),
         ]);
 
-        tap(Auth::user(), $logout(...))->delete();
+        $user = Auth::user();
+
+        // orders.user_id is restrictOnDelete, so the database would reject the
+        // delete. Check before logging out so the user stays signed in.
+        if ($user->orders()->exists()) {
+            throw ValidationException::withMessages([
+                'account' => __('Your account has order history, so it cannot be deleted. Please contact us for help.'),
+            ]);
+        }
+
+        tap($user, $logout(...))->delete();
 
         $this->redirect('/', navigate: true);
     }
@@ -36,6 +47,8 @@ new class extends Component {
         </div>
 
         <flux:input wire:model="password" :label="__('Password')" type="password" viewable />
+
+        <flux:error name="account" />
 
         <div class="flex justify-end space-x-2 rtl:space-x-reverse">
             <flux:modal.close>
