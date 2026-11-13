@@ -32,6 +32,7 @@ If anything fails, stop and report it.
 
 ## Data rules
 - Money is `unsignedInteger` cents. Format it only in views.
+- `App\Services\PricingService` is the only code that calculates an amount that is stored or charged (subtotals, discounts, tax, totals). Nothing else may calculate one. A display-only preview (for example the drink builder's live total) must say so in a comment and name `PricingService` as the source of truth.
 - Store times in UTC and display them in `America/Vancouver`.
 - Orders snapshot item names and prices at order time.
 - Never edit a migration that's already merged into `main`. Add a new one.
