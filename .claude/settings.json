@@ -2,5 +2,11 @@
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr checks:*)"
+    ]
   }
 }
