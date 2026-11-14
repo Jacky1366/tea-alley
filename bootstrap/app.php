@@ -15,6 +15,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Only APP_URL's host (no subdomains): a request with any other Host header is
+        // rejected, so nothing that builds URLs from the request host can be pointed elsewhere.
+        // Laravel skips this check in the local environment and in tests.
+        $middleware->trustHosts(at: function (): array {
+            $host = parse_url(config()->string('app.url'), PHP_URL_HOST);
+
+            return is_string($host) ? ['^'.preg_quote($host).'$'] : [];
+        }, subdomains: false);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
         ]);
