@@ -17,6 +17,19 @@
 - Never add `Co-Authored-By` or `Claude-Session` lines.
 - Never commit unless asked. Never push to `main` directly.
 
+### Merging
+- After opening the PR, wait for CI with `gh pr checks <N> --watch`.
+- Merge only if every check is green AND the browser check passed:
+  `gh pr merge <N> --merge --delete-branch`.
+- If CI fails, fix it on the same branch and push again. Never merge red,
+  never use `--admin`, never merge a PR you didn't open in this session.
+- After merging: `git checkout main`, `git pull`, then run the post-pull
+  checklist (`composer install`, `php artisan migrate`, `npm run build`,
+  `php artisan config:clear`) and confirm the issue auto-closed with
+  `gh issue view <N>`.
+- In the final summary, list anything Jacky should check by hand
+  (e.g. things only verified with DOM clicks).
+
 ## Definition of done
 Run all three, and all must pass before saying a task is done:
 
