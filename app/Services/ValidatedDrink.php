@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MenuItem;
+use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
 use Illuminate\Support\Collection;
 
@@ -30,5 +31,22 @@ final readonly class ValidatedDrink
     public function key(): string
     {
         return $this->item->id.':'.implode(',', $this->optionIds);
+    }
+
+    /**
+     * "Size: Large · Toppings: Pearls, Pudding", in display order, for the cart and
+     * checkout pages. Uses the relations ModifierValidator already loaded, so nothing
+     * is lazy loaded.
+     */
+    public function optionSummary(): string
+    {
+        return $this->item->modifierGroups
+            ->map(function (ModifierGroup $group): ?string {
+                $names = $group->options->whereIn('id', $this->optionIds)->pluck('name_en');
+
+                return $names->isEmpty() ? null : $group->name_en.': '.$names->join(', ');
+            })
+            ->filter()
+            ->join(' · ');
     }
 }
