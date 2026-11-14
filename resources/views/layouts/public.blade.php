@@ -16,13 +16,17 @@
             <nav class="flex items-center gap-2" data-test="public-nav">
                 <livewire:cart-badge />
                 @auth
+                    {{-- Icon only on phones, so a staff header (cart, Admin, My orders, Dashboard) fits at 390px. --}}
                     @if (auth()->user()->canManageMenu())
-                        <flux:button href="/admin" variant="ghost" size="sm" icon="cog-6-tooth">
-                            {{ __('Admin') }}
+                        <flux:button href="/admin" variant="ghost" size="sm" icon="cog-6-tooth" :aria-label="__('Admin')">
+                            <span class="max-sm:sr-only">{{ __('Admin') }}</span>
                         </flux:button>
                     @endif
-                    <flux:button :href="route('dashboard')" variant="primary" size="sm" wire:navigate>
-                        {{ __('Dashboard') }}
+                    <flux:button :href="route('orders.index')" variant="ghost" size="sm" icon="receipt-percent" wire:navigate :aria-label="__('My orders')" data-test="my-orders-link">
+                        <span class="max-sm:sr-only">{{ __('My orders') }}</span>
+                    </flux:button>
+                    <flux:button :href="route('dashboard')" variant="primary" size="sm" icon="squares-2x2" wire:navigate :aria-label="__('Dashboard')">
+                        <span class="max-sm:sr-only">{{ __('Dashboard') }}</span>
                     </flux:button>
                 @else
                     <flux:button :href="route('login')" variant="ghost" size="sm" wire:navigate>
