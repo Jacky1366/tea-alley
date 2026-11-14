@@ -8,6 +8,7 @@ use App\Models\OrderItemModifier;
 use App\Models\User;
 use App\Notifications\OrderReadyNotification;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\DB;
@@ -237,5 +238,36 @@ describe('mail failure', function () {
         // the log line can't be seen; the test above covers the logging.
         expect($attempts)->toBe(1)
             ->and($order->fresh()->status)->toBe(OrderStatus::Ready);
+    });
+});
+
+/*
+ * The link is built from APP_URL, never from the request host: the request is the
+ * barista's Bump, and its Host header can be forged.
+ */
+describe('the link host', function () {
+    test('a forged request host still gives a link on APP_URL', function () {
+        config(['app.url' => 'https://tea-alley.example']);
+        $order = readyTestOrder(OrderStatus::Preparing);
+
+        // The Bump request arrives with a forged Host header.
+        app('url')->setRequest(Request::create('https://evil.example/barista'));
+        expect(route('orders.show', $order))->toStartWith('https://evil.example/');  // what route() alone would give
+
+        $order->transitionTo(OrderStatus::Ready);
+
+        [$email] = sentEmails();
+        $receipt = 'https://tea-alley.example/orders/'.$order->order_number;
+
+        expect($email->getTextBody())->toContain($receipt)->not->toContain('evil.example')
+            ->and($email->getHtmlBody())->toContain('href="'.$receipt.'"')->not->toContain('evil.example');
+    });
+
+    test('a trailing slash on APP_URL does not double the slash', function () {
+        config(['app.url' => 'https://tea-alley.example/']);
+        $order = readyTestOrder(OrderStatus::Preparing);
+
+        expect((new OrderReadyNotification($order))->receiptUrl())
+            ->toBe('https://tea-alley.example/orders/'.$order->order_number);
     });
 });
