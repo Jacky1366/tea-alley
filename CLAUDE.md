@@ -22,7 +22,7 @@ Run all three, and all must pass before saying a task is done:
 
 ```bash
 vendor/bin/pint --test
-vendor/bin/phpstan analyse
+vendor/bin/phpstan analyse --memory-limit=1G
 php artisan test
 ```
 

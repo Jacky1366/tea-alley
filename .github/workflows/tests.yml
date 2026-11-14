@@ -76,7 +76,7 @@ jobs:
         run: vendor/bin/pint --parallel --test
 
       - name: Static analysis (PHPStan)
-        run: vendor/bin/phpstan analyse --no-progress
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
       - name: Run tests
         run: php artisan test
