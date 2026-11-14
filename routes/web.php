@@ -11,6 +11,12 @@ Route::livewire('/cart', 'pages::cart')->name('cart');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/checkout', 'pages::checkout')->name('checkout');
 
+    Route::livewire('/orders', 'pages::orders.index')->name('orders.index');
+    // OrderPolicy denies someone else's order as a 404, the same as an unknown number.
+    Route::livewire('/orders/{order:order_number}', 'pages::orders.show')
+        ->middleware('can:view,order')
+        ->name('orders.show');
+
     Route::view('dashboard', 'dashboard')->name('dashboard');
 
     Route::view('barista', 'barista')

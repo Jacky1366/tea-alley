@@ -20,7 +20,6 @@ final class FakePaymentGateway implements PaymentGateway
             ->where('status', OrderStatus::PendingPayment)
             ->update(['status' => OrderStatus::Paid, 'paid_at' => now()]);
 
-        // TODO(T1-7): switch to route('orders.show', ...) once the receipt page exists.
-        return url('/orders/'.$order->order_number);
+        return route('orders.show', $order);
     }
 }
