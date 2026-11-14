@@ -215,8 +215,23 @@ describe('what the board shows', function () {
             ->assertSeeHtmlInOrder(['data-test="column-paid"', 'No orders', 'data-test="column-preparing"', 'No orders', 'data-test="column-ready"', 'No orders']);
     });
 
-    test('polls every 5 seconds', function () {
-        Livewire::actingAs($this->barista)->test(BOARD)->assertSeeHtml('wire:poll.5s');
+    test('has the Live / Polling indicator for the barista channel instead of a fixed wire:poll', function () {
+        Livewire::actingAs($this->barista)->test(BOARD)
+            ->assertSeeHtml('data-test="realtime-status"')
+            ->assertSeeHtml('data-channel="private-barista"')
+            ->assertDontSeeHtml('wire:poll');
+    });
+
+    test('an OrderStatusChanged event on the barista channel redraws the board from the database', function () {
+        $order = boardOrder(OrderStatus::Paid, boardTime('2026-11-14 23:15'));
+        $board = Livewire::actingAs($this->barista)->test(BOARD);
+        expect(columnOrders($board->html(), OrderStatus::Paid))->toBe([$order->order_number]);
+
+        $order->transitionTo(OrderStatus::Preparing);
+        $board->dispatch('echo-private:barista,OrderStatusChanged', ['order_id' => $order->id, 'status' => 'preparing']);
+
+        expect(columnOrders($board->html(), OrderStatus::Paid))->toBe([])
+            ->and(columnOrders($board->html(), OrderStatus::Preparing))->toBe([$order->order_number]);
     });
 
     test('is in Traditional Chinese when the locale is zh_TW', function () {

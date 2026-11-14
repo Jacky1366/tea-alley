@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\PickupType;
+use App\Events\OrderStatusChanged;
 use App\Exceptions\InvalidOrderTransition;
 use App\Exceptions\OrderTransitionConflict;
 use Carbon\CarbonImmutable;
@@ -187,6 +188,9 @@ class Order extends Model
 
         // Only the columns written here: anything else the caller changed stays dirty.
         $this->syncOriginalAttributes($synced);
+
+        // Never throws: the event is ShouldRescue, so a broadcast failure is only reported.
+        OrderStatusChanged::dispatch($this->id, $to);
     }
 
     /**

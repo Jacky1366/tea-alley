@@ -1,5 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{{-- Echo (resources/js/echo.js) sends this with its /broadcasting/auth request. --}}
+<meta name="csrf-token" content="{{ csrf_token() }}" />
 
 <title>
     {{-- Page titles are English keys (#[Title('Menu')]) or already translated; translated here. --}}

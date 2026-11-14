@@ -12,11 +12,15 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /*
- * The barista board: today's paid, preparing, and ready orders, refreshed every 5 seconds.
+ * The barista board: today's paid, preparing, and ready orders. Re-rendered when an
+ * OrderStatusChanged event arrives on the private "barista" channel, and polled as a
+ * fallback: every 30 seconds while live, every 5 seconds when Reverb is unreachable
+ * (<x-realtime-status>).
  *
  * Nothing about the orders is a public property. The list is a computed property, queried
  * again on every render and never sent to the browser as state; actions take only an
@@ -60,6 +64,16 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
     /**
      * @return Collection<int, Order>
      */
+    /**
+     * An order changed status somewhere. The payload isn't used: the board is drawn again
+     * from the database.
+     */
+    #[On('echo-private:barista,OrderStatusChanged')]
+    public function orderStatusChanged(): void
+    {
+        unset($this->orders);
+    }
+
     public function column(OrderStatus $status): Collection
     {
         return $this->orders->filter(fn (Order $order): bool => $order->status === $status)->values();
@@ -134,7 +148,6 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
 
 <div
     class="flex flex-col gap-6"
-    wire:poll.5s
     {{-- Display only: a ticking clock for the card timers. --}}
     x-data="{
         offset: {{ now()->getTimestampMs() }} - Date.now(),
@@ -151,7 +164,10 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
     }"
     data-test="barista-board"
 >
-    <flux:heading size="xl" level="1">{{ __('Barista board') }}</flux:heading>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+        <flux:heading size="xl" level="1">{{ __('Barista board') }}</flux:heading>
+        <x-realtime-status channel="private-barista" />
+    </div>
 
     <div class="grid gap-4 md:grid-cols-3">
         @foreach (self::COLUMNS as $status)
