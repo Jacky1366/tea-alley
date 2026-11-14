@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 42" {{ $attributes }}>
-    <path 
-        fill="currentColor" 
-        fill-rule="evenodd" 
-        clip-rule="evenodd"
-        d="M17.2 5.633 8.6.855 0 5.633v26.51l16.2 9 16.2-9v-8.442l7.6-4.223V9.856l-8.6-4.777-8.6 4.777V18.3l-5.6 3.111V5.633ZM38 18.301l-5.6 3.11v-6.157l5.6-3.11V18.3Zm-1.06-7.856-5.54 3.078-5.54-3.079 5.54-3.078 5.54 3.079ZM24.8 18.3v-6.157l5.6 3.111v6.158L24.8 18.3Zm-1 1.732 5.54 3.078-13.14 7.302-5.54-3.078 13.14-7.3v-.002Zm-16.2 7.89 7.6 4.222V38.3L2 30.966V7.92l5.6 3.111v16.892ZM8.6 9.3 3.06 6.222 8.6 3.143l5.54 3.08L8.6 9.3Zm21.8 15.51-13.2 7.334V38.3l13.2-7.334v-6.156ZM9.6 11.034l5.6-3.11v14.6l-5.6 3.11v-14.6Z"
+{{-- Tea Alley mark: one cup made of two buildings, with the alley (巷) between them running down to the street. Single colour (currentColor). --}}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" {{ $attributes }}>
+    <path fill="currentColor" d="M19.2 0.8 21.7 1.4 19.9 6.6 17.4 6.6Z" />
+    <rect fill="currentColor" x="4" y="6" width="24" height="3.6" rx="1.8" />
+    <path
+        fill="currentColor"
+        fill-rule="evenodd"
+        d="M6 11H15L13.4 26H18.6L17.28 13.6H25.66L23.5 30H8.5ZM9.6 14.5H12.2V17.3H9.6ZM19.9 17H22.5V19.8H19.9Z"
     />
 </svg>
