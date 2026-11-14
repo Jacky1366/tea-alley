@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ModifierGroups\RelationManagers;
 
+use App\Models\ModifierOption;
 use App\Support\Money;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -14,7 +15,10 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class OptionsRelationManager extends RelationManager
 {
@@ -66,6 +70,12 @@ class OptionsRelationManager extends RelationManager
                 TextColumn::make('name_en')
                     ->label('Name (EN)')
                     ->searchable(),
+                // One click marks an option sold out (86). Disabled without the update ability; Filament
+                // also refuses the write on the server when the column is disabled.
+                // Right after the name, so it's on screen without scrolling the table on a phone.
+                ToggleColumn::make('is_available')
+                    ->label('Available')
+                    ->disabled(fn (ModifierOption $record): bool => ! (auth()->user()?->can('update', $record) ?? false)),
                 TextColumn::make('name_zh')
                     ->label('Name (ZH)'),
                 TextColumn::make('price_delta_cents')
@@ -74,12 +84,15 @@ class OptionsRelationManager extends RelationManager
                 IconColumn::make('is_default')
                     ->label('Default')
                     ->boolean(),
-                IconColumn::make('is_available')
-                    ->label('Available')
-                    ->boolean(),
                 TextColumn::make('sort_order')
                     ->numeric()
                     ->sortable(),
+            ])
+            ->filters([
+                Filter::make('sold_out')
+                    ->label('Sold out')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('is_available', false)),
             ])
             ->headerActions([
                 CreateAction::make(),
