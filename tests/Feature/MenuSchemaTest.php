@@ -85,3 +85,16 @@ test('the database seeder builds the menu', function () {
     expect($sparkling->menuItems()->where('tax_category', '!=', MenuItem::TAX_CARBONATED)->count())->toBe(0)
         ->and(MenuItem::where('tax_category', MenuItem::TAX_CARBONATED)->count())->toBe($sparkling->menuItems()->count());
 });
+
+test('the seeded menu uses Taiwanese shop wording', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $group = fn (string $en) => ModifierGroup::where('name_en', $en)->firstOrFail();
+
+    expect($group('Size')->name_zh)->toBe('容量')
+        ->and($group('Milk')->name_zh)->toBe('換奶')
+        ->and(Category::where('slug', 'pure-tea')->value('name_zh'))->toBe('純茶')
+        // Least to most ice; Regular Ice stays the default.
+        ->and($group('Ice')->options()->orderBy('sort_order')->pluck('name_zh')->all())->toBe(['去冰', '微冰', '少冰', '正常冰', '多冰'])
+        ->and($group('Ice')->options()->where('is_default', true)->value('name_en'))->toBe('Regular Ice');
+});

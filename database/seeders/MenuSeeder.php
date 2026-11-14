@@ -37,7 +37,7 @@ class MenuSeeder extends Seeder
                 ['Peach Oolong Sparkling Tea', '蜜桃烏龍氣泡茶', 650],
                 ['Lychee Sparkling Tea', '荔枝氣泡茶', 650],
             ]],
-            ['slug' => 'pure-tea', 'name_en' => 'Pure Tea', 'name_zh' => '原味茶', 'drinks' => [
+            ['slug' => 'pure-tea', 'name_en' => 'Pure Tea', 'name_zh' => '純茶', 'drinks' => [
                 ['Jasmine Green Tea', '茉莉綠茶', 450],
                 ['Roasted Oolong Tea', '炭焙烏龍茶', 475],
                 ['Assam Black Tea', '阿薩姆紅茶', 450],
@@ -98,7 +98,7 @@ class MenuSeeder extends Seeder
     private function seedModifierGroups(): array
     {
         $definitions = [
-            'size' => [['Size', '尺寸', true, 1, 1], [
+            'size' => [['Size', '容量', true, 1, 1], [
                 ['Medium', '中杯', 0, true],
                 ['Large', '大杯', 50],
             ]],
@@ -111,6 +111,7 @@ class MenuSeeder extends Seeder
             ]],
             'ice' => [['Ice', '冰塊', true, 1, 1], [
                 ['No Ice', '去冰', 0],
+                ['Light Ice', '微冰', 0],
                 ['Less Ice', '少冰', 0],
                 ['Regular Ice', '正常冰', 0, true],
                 ['Extra Ice', '多冰', 0],
@@ -121,7 +122,7 @@ class MenuSeeder extends Seeder
                 ['Pudding', '布丁', 100],
                 ['Grass Jelly', '仙草', 75],
             ]],
-            'milk' => [['Milk', '奶類', false, 0, 1], [
+            'milk' => [['Milk', '換奶', false, 0, 1], [
                 ['Oat Milk', '燕麥奶', 60],
                 ['Lactose-free Milk', '無乳糖牛奶', 50],
             ]],
