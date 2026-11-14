@@ -23,8 +23,10 @@
 Fast lane (when Jacky says "fast lane"):
 - Write the GitHub issue yourself from the Development Plan
   (`docs/development-plan.md`) with `gh issue create`, then plan.
-  Where the plan differs from a GitHub issue, the decision log, or this
-  file, those win: the plan is the starting point, not the final spec.
+  Where the plan differs from a GitHub issue, the decision log
+  (`docs/decisions.md`), or this file, those win: the plan is the
+  starting point, not the final spec. Record every deliberate deviation
+  from the plan in `docs/decisions.md`.
 - For every open question that has a clear recommended default, take the
   default and keep going. List every decision you made in the final
   summary under "Decisions I made".
