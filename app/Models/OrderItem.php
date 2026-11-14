@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedName;
+use App\Support\OptionSummary;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */
-    use HasFactory;
+    use HasFactory, HasLocalizedName;
 
     protected $fillable = [
         'order_id',
@@ -56,33 +58,36 @@ class OrderItem extends Model
     }
 
     /**
-     * The chosen options grouped by modifier group, from snapshot columns only:
-     * ["Size: Large", "Toppings: Pearls, Pudding"].
+     * The chosen options grouped by modifier group, from snapshot columns only, in the
+     * current language: ["Size: Large", "Toppings: Pearls, Pudding"] or
+     * ["容量：大杯", "加料：珍珠、布丁"].
      *
      * The snapshot has no group id or sort order. OrderService inserts modifiers in
      * display order (groups, then options, by sort_order), so load them ordered by id;
-     * consecutive rows with the same group name form one group.
+     * consecutive rows with the same English group name form one group.
      *
      * @return list<string>
      */
     public function modifierSummary(): array
     {
         $lines = [];
-        $group = null;
+        $groupKey = null;
+        $groupName = '';
         $options = [];
 
         foreach ($this->modifiers as $modifier) {
-            if ($group !== null && $modifier->group_name_en !== $group) {
-                $lines[] = $group.': '.implode(', ', $options);
+            if ($groupKey !== null && $modifier->group_name_en !== $groupKey) {
+                $lines[] = OptionSummary::line($groupName, $options);
                 $options = [];
             }
 
-            $group = $modifier->group_name_en;
-            $options[] = $modifier->name_en;
+            $groupKey = $modifier->group_name_en;
+            $groupName = $modifier->localizedGroupName();
+            $options[] = $modifier->localizedName();
         }
 
-        if ($group !== null) {
-            $lines[] = $group.': '.implode(', ', $options);
+        if ($groupKey !== null) {
+            $lines[] = OptionSummary::line($groupName, $options);
         }
 
         return $lines;

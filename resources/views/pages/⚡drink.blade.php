@@ -135,7 +135,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
         $cart->add(app(ModifierValidator::class)->validate($this->item, $this->chosenOptionIds(), $this->quantity));
 
         $this->dispatch('cart-updated');
-        session()->flash('cart-status', __(':drink added to cart.', ['drink' => $this->item->name_en]));
+        session()->flash('cart-status', __(':drink added to cart.', ['drink' => $this->item->localizedName()]));
 
         $this->redirectRoute('home', navigate: true);
     }
@@ -184,7 +184,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
 
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
         @if ($photo = $this->photoUrl())
-            <img src="{{ $photo }}" alt="{{ $this->item->name_en }}" class="aspect-square w-full rounded-xl object-cover sm:w-48">
+            <img src="{{ $photo }}" alt="{{ $this->item->localizedName() }}" class="aspect-square w-full rounded-xl object-cover sm:w-48">
         @else
             <div class="flex aspect-square w-full items-center justify-center rounded-xl bg-zinc-100 text-7xl sm:w-48 dark:bg-zinc-700" role="img" aria-label="{{ __('No photo') }}">
                 🧋
@@ -193,13 +193,13 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
 
         <div class="flex min-w-0 flex-1 flex-col gap-2">
             <div class="flex flex-wrap items-center gap-2">
-                <flux:heading size="xl" level="1">{{ $this->item->name_en }}</flux:heading>
+                <flux:heading size="xl" level="1">{{ $this->item->localizedName() }}</flux:heading>
                 @unless ($this->item->is_available)
-                    <flux:badge color="red" size="sm" data-test="sold-out">{{ __('Sold out') }} 售完</flux:badge>
+                    <flux:badge color="red" size="sm" data-test="sold-out">{{ __('Sold out') }}</flux:badge>
                 @endunless
             </div>
-            <flux:text size="lg">{{ $this->item->name_zh }}</flux:text>
-            @if ($this->item->description)
+            {{-- The description has no Chinese column yet, so it's shown in English mode only. --}}
+            @if ($this->item->description && app()->getLocale() === \App\Enums\Locale::English->value)
                 <flux:text>{{ $this->item->description }}</flux:text>
             @endif
             <flux:heading size="lg" data-test="base-price">{{ $this->money($this->item->price_cents) }}</flux:heading>
@@ -250,7 +250,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
             @php($single = $group->max_select === 1)
             <fieldset class="flex flex-col gap-2" wire:key="group-{{ $group->id }}" data-test="group-{{ $group->id }}">
                 <legend class="mb-2 flex w-full flex-wrap items-baseline justify-between gap-2">
-                    <span class="font-medium text-zinc-800 dark:text-white">{{ $group->name_en }} {{ $group->name_zh }}</span>
+                    <span class="font-medium text-zinc-800 dark:text-white">{{ $group->localizedName() }}</span>
                     <span class="text-sm text-zinc-500 dark:text-zinc-400">
                         @if ($group->effectiveMin() > 0)
                             {{ __('Required') }}
@@ -267,7 +267,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
                     @if ($single && $group->effectiveMin() === 0)
                         <label class="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2">
                             <input type="radio" name="group-{{ $group->id }}" value="" wire:model="selected.{{ $group->id }}" class="size-4 accent-[var(--color-accent)]" data-test="option-none-{{ $group->id }}">
-                            <span class="flex-1">{{ __('None') }} 不需要</span>
+                            <span class="flex-1">{{ __('None') }}</span>
                         </label>
                     @endif
 
@@ -290,7 +290,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
                                 data-test="option-{{ $option->id }}"
                             >
                             <span class="min-w-0 flex-1">
-                                {{ $option->name_en }} <span class="text-zinc-500 dark:text-zinc-400">{{ $option->name_zh }}</span>
+                                {{ $option->localizedName() }}
                                 @unless ($option->is_available)
                                     <flux:badge size="sm" color="zinc" class="ms-1">{{ __('Sold out') }}</flux:badge>
                                 @endunless

@@ -3,8 +3,8 @@
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\LocalTime;
 use App\Support\Money;
-use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -49,14 +49,10 @@ new #[Layout('layouts::public')] #[Title('My orders')] class extends Component {
         return Money::format($cents);
     }
 
-    public function local(CarbonInterface $time): CarbonInterface
-    {
-        return $time->copy()->setTimezone(config()->string('app.display_timezone'));
-    }
 }; ?>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
-    <flux:heading size="xl" level="1">{{ __('My orders') }} 我的訂單</flux:heading>
+    <flux:heading size="xl" level="1">{{ __('My orders') }}</flux:heading>
 
     @if ($this->orders->isEmpty())
         <flux:callout icon="receipt-percent" data-test="no-orders">
@@ -72,7 +68,7 @@ new #[Layout('layouts::public')] #[Title('My orders')] class extends Component {
                     <a href="{{ route('orders.show', $order) }}" wire:navigate class="flex items-center justify-between gap-3 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-700/50" data-test="order-row">
                         <div class="min-w-0">
                             <flux:heading data-test="order-number">{{ $order->order_number }}</flux:heading>
-                            <flux:text size="sm">{{ $this->local($order->created_at)->format('M j, Y g:i A') }}</flux:text>
+                            <flux:text size="sm">{{ LocalTime::format($order->created_at, 'date_time') }}</flux:text>
                             <flux:text size="sm">{{ trans_choice(':count drink|:count drinks', $this->drinkCount($order)) }}</flux:text>
                         </div>
                         <div class="flex shrink-0 flex-col items-end gap-1">

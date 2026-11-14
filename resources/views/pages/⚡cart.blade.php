@@ -81,7 +81,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Your cart') }} 購物車</flux:heading>
+        <flux:heading size="xl" level="1">{{ __('Your cart') }}</flux:heading>
     </div>
 
     <x-ordering-banner />
@@ -102,7 +102,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
 
     @if ($this->contents->isEmpty())
         <flux:callout icon="shopping-bag" data-test="cart-empty">
-            <flux:callout.heading>{{ __('Your cart is empty') }} 購物車是空的</flux:callout.heading>
+            <flux:callout.heading>{{ __('Your cart is empty') }}</flux:callout.heading>
             <flux:callout.text>
                 <flux:link :href="route('home')" wire:navigate>{{ __('Browse the menu') }}</flux:link>
             </flux:callout.text>
@@ -114,8 +114,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                     <li class="flex flex-col gap-3 p-4" wire:key="line-{{ $line->key }}" data-test="cart-line">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
-                                <flux:heading size="lg">{{ $line->drink->item->name_en }}</flux:heading>
-                                <flux:text>{{ $line->drink->item->name_zh }}</flux:text>
+                                <flux:heading size="lg">{{ $line->drink->item->localizedName() }}</flux:heading>
                                 @if ($summary = $line->drink->optionSummary())
                                     <flux:text size="sm" class="mt-1">{{ $summary }}</flux:text>
                                 @endif
@@ -160,7 +159,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                     @foreach ($this->contents->invalid as $line)
                         <li class="flex items-start justify-between gap-3 p-4" wire:key="invalid-{{ $line->key }}" data-test="invalid-line">
                             <div class="min-w-0">
-                                <flux:heading>{{ $line->name ?? __('Unavailable drink') }} × {{ $line->quantity }}</flux:heading>
+                                <flux:heading>{{ __(':drink × :quantity', ['drink' => $line->name ?? __('Unavailable drink'), 'quantity' => $line->quantity]) }}</flux:heading>
                                 @foreach ($line->reasons as $reason)
                                     <flux:text size="sm" class="text-red-600! dark:text-red-400!" data-test="invalid-reason">{{ $reason }}</flux:text>
                                 @endforeach

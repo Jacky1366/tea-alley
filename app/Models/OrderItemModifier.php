@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedName;
 use Database\Factories\OrderItemModifierFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class OrderItemModifier extends Model
 {
     /** @use HasFactory<OrderItemModifierFactory> */
-    use HasFactory;
+    use HasFactory, HasLocalizedName;
 
     public $timestamps = false;
 
@@ -29,6 +30,14 @@ class OrderItemModifier extends Model
         return [
             'price_delta_cents' => 'integer',
         ];
+    }
+
+    /**
+     * The snapshot's modifier group name in the current language.
+     */
+    public function localizedGroupName(): string
+    {
+        return $this->pickLocalized($this->group_name_en, $this->group_name_zh);
     }
 
     /**

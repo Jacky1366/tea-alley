@@ -12,6 +12,7 @@ use App\Services\PickupSlots;
 use App\Services\PriceBreakdown;
 use App\Services\PricingService;
 use App\Services\ValidatedDrink;
+use App\Support\LocalTime;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
@@ -167,7 +168,7 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Checkout') }} 結帳</flux:heading>
+        <flux:heading size="xl" level="1">{{ __('Checkout') }}</flux:heading>
     </div>
 
     <x-ordering-banner />
@@ -191,8 +192,7 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
         @foreach ($this->breakdown->lines as $line)
             <li class="flex items-start justify-between gap-3 p-4" wire:key="line-{{ $line->key }}" data-test="checkout-line">
                 <div class="min-w-0">
-                    <flux:heading>{{ $line->drink->item->name_en }} × {{ $line->quantity }}</flux:heading>
-                    <flux:text>{{ $line->drink->item->name_zh }}</flux:text>
+                    <flux:heading>{{ __(':drink × :quantity', ['drink' => $line->drink->item->localizedName(), 'quantity' => $line->quantity]) }}</flux:heading>
                     @if ($summary = $line->drink->optionSummary())
                         <flux:text size="sm" class="mt-1">{{ $summary }}</flux:text>
                     @endif
@@ -227,7 +227,7 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
             <flux:radio
                 value="asap"
                 :label="__('As soon as possible')"
-                :description="__('Ready around :time', ['time' => $this->asapEstimate->format('g:i A')])"
+                :description="__('Ready around :time', ['time' => LocalTime::format($this->asapEstimate, 'time')])"
                 data-test="pickup-asap"
             />
             @if ($this->pickupSlots !== [])
@@ -239,7 +239,7 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
             <flux:select wire:model="pickupSlot" :label="__('Pickup time')" data-test="pickup-slot">
                 <flux:select.option value="">{{ __('Choose a time') }}</flux:select.option>
                 @foreach ($this->pickupSlots as $slot)
-                    <flux:select.option value="{{ $this->slotValue($slot) }}" wire:key="slot-{{ $this->slotValue($slot) }}">{{ $slot->format('g:i A') }}</flux:select.option>
+                    <flux:select.option value="{{ $this->slotValue($slot) }}" wire:key="slot-{{ $this->slotValue($slot) }}">{{ LocalTime::format($slot, 'time') }}</flux:select.option>
                 @endforeach
             </flux:select>
         @elseif ($pickupType === 'scheduled')

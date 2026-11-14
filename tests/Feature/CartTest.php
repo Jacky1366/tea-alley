@@ -294,7 +294,7 @@ describe('cart page', function () {
         $html = $this->get(route('cart'))
             ->assertOk()
             ->assertSee('Cart Tea')
-            ->assertSee('購物車茶')
+            ->assertDontSee('購物車茶')
             ->assertSee('Size: Large · Toppings: Pearls, Pudding')
             ->assertSee('$8.25 each')
             ->assertSee('$16.50')

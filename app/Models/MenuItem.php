@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedName;
 use Closure;
 use Database\Factories\MenuItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MenuItem extends Model
 {
     /** @use HasFactory<MenuItemFactory> */
-    use HasFactory;
+    use HasFactory, HasLocalizedName;
 
     public const TAX_STANDARD = 'standard';
 

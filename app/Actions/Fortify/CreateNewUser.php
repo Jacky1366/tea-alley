@@ -4,6 +4,7 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
+use App\Enums\Locale;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -29,6 +30,8 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
+            // The language the customer registered in (SetLocale already resolved it).
+            'locale' => Locale::current()->value,
         ]);
 
         // findOrCreate so registration still works before RoleSeeder has run (e.g. fresh test DBs).

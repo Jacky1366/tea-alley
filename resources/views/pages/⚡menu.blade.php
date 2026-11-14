@@ -12,11 +12,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
-    public const SORTS = [
-        'popular' => 'Most popular',
-        'price_asc' => 'Price: low to high',
-        'price_desc' => 'Price: high to low',
-    ];
+    public const SORTS = ['popular', 'price_asc', 'price_desc'];
 
     /** Active category slug; empty means "All". */
     #[Url]
@@ -98,6 +94,18 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         return $item->photo_path === null ? null : Storage::disk('public')->url($item->photo_path);
     }
 
+    /**
+     * Literal keys, so the missing-translation test can find them.
+     */
+    public function sortLabel(string $sort): string
+    {
+        return match ($sort) {
+            'price_asc' => __('Price: low to high'),
+            'price_desc' => __('Price: high to low'),
+            default => __('Most popular'),
+        };
+    }
+
     public function price(MenuItem $item): string
     {
         return Money::format($item->price_cents);
@@ -106,7 +114,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
 
 <div class="flex flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Menu') }} 菜單</flux:heading>
+        <flux:heading size="xl" level="1">{{ __('Menu') }}</flux:heading>
         <flux:text class="mt-1">{{ __('Freshly brewed bubble tea, made to order.') }}</flux:text>
     </div>
 
@@ -132,7 +140,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
             :aria-selected="$this->activeCategory === null ? 'true' : 'false'"
             class="shrink-0"
         >
-            {{ __('All') }} 全部
+            {{ __('All') }}
         </flux:button>
         @foreach ($this->categories as $tab)
             <flux:button
@@ -144,7 +152,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
                 :aria-selected="$this->activeCategory?->is($tab) ? 'true' : 'false'"
                 class="shrink-0"
             >
-                {{ $tab->name_en }} {{ $tab->name_zh }}
+                {{ $tab->localizedName() }}
             </flux:button>
         @endforeach
     </div>
@@ -153,14 +161,14 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         <flux:input
             wire:model.live.debounce.300ms="search"
             icon="magnifying-glass"
-            :placeholder="__('Search drinks… 搜尋飲品')"
+            :placeholder="__('Search drinks…')"
             maxlength="100"
             clearable
             class="sm:flex-1"
         />
         <flux:select wire:model.live="sort" class="sm:max-w-56" :aria-label="__('Sort')">
-            @foreach ($this::SORTS as $value => $label)
-                <flux:select.option :value="$value">{{ __($label) }}</flux:select.option>
+            @foreach ($this::SORTS as $value)
+                <flux:select.option :value="$value">{{ $this->sortLabel($value) }}</flux:select.option>
             @endforeach
         </flux:select>
     </div>
@@ -183,7 +191,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
                 >
                 <flux:card class="flex h-full flex-col gap-3 overflow-hidden p-0!" data-test="drink-card">
                     @if ($photo = $this->photoUrl($drink))
-                        <img src="{{ $photo }}" alt="{{ $drink->name_en }}" class="aspect-square w-full object-cover" loading="lazy">
+                        <img src="{{ $photo }}" alt="{{ $drink->localizedName() }}" class="aspect-square w-full object-cover" loading="lazy">
                     @else
                         <div class="flex aspect-square w-full items-center justify-center bg-zinc-100 text-6xl dark:bg-zinc-700" role="img" aria-label="{{ __('No photo') }}">
                             🧋
@@ -193,13 +201,12 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
                     <div class="flex flex-1 flex-col gap-1 px-4 pb-4">
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <flux:heading size="lg" class="truncate">{{ $drink->name_en }}</flux:heading>
-                                <flux:text class="truncate">{{ $drink->name_zh }}</flux:text>
+                                <flux:heading size="lg" class="truncate">{{ $drink->localizedName() }}</flux:heading>
                             </div>
                             <flux:heading size="lg" class="shrink-0">{{ $this->price($drink) }}</flux:heading>
                         </div>
                         <div>
-                            <flux:badge size="sm">{{ $drink->category->name_en }} {{ $drink->category->name_zh }}</flux:badge>
+                            <flux:badge size="sm">{{ $drink->category->localizedName() }}</flux:badge>
                         </div>
                     </div>
                 </flux:card>

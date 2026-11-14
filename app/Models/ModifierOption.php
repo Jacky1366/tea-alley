@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedName;
 use Database\Factories\ModifierOptionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ModifierOption extends Model
 {
     /** @use HasFactory<ModifierOptionFactory> */
-    use HasFactory;
+    use HasFactory, HasLocalizedName;
 
     protected $fillable = [
         'modifier_group_id',

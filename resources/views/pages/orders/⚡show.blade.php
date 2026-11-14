@@ -3,8 +3,8 @@
 use App\Enums\OrderStatus;
 use App\Enums\PickupType;
 use App\Models\Order;
+use App\Support\LocalTime;
 use App\Support\Money;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -33,15 +33,11 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         return Money::format($cents);
     }
 
-    public function local(CarbonInterface $time): CarbonInterface
-    {
-        return $time->copy()->setTimezone(config()->string('app.display_timezone'));
-    }
 }; ?>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
     <div class="flex flex-col gap-1">
-        <flux:text>{{ __('Order number') }} 訂單號碼</flux:text>
+        <flux:text>{{ __('Order number') }}</flux:text>
         <flux:heading size="xl" level="1" class="text-4xl! tracking-wide" data-test="order-number">{{ $order->order_number }}</flux:heading>
         <div class="mt-1 flex flex-wrap items-center gap-2">
             <flux:badge
@@ -50,20 +46,20 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
                 data-test="order-status"
             >{{ $order->status->label() }}</flux:badge>
             <flux:text size="sm" data-test="placed-at">
-                {{ __('Placed :time', ['time' => $this->local($order->created_at)->format('M j, Y g:i A')]) }}
+                {{ __('Placed :time', ['time' => LocalTime::format($order->created_at, 'date_time')]) }}
             </flux:text>
         </div>
     </div>
 
     <flux:callout icon="clock" data-test="pickup">
-        <flux:callout.heading>{{ __('Pickup') }} 取餐</flux:callout.heading>
+        <flux:callout.heading>{{ __('Pickup') }}</flux:callout.heading>
         <flux:callout.text>
             @if ($order->pickup_at === null)
                 {{ __('As soon as possible') }}
             @elseif ($order->pickup_type === PickupType::Asap)
-                {{ __('As soon as possible, around :time', ['time' => $this->local($order->pickup_at)->format('g:i A')]) }}
+                {{ __('As soon as possible, around :time', ['time' => LocalTime::format($order->pickup_at, 'time')]) }}
             @else
-                {{ __('Scheduled for :time', ['time' => $this->local($order->pickup_at)->format('D, M j g:i A')]) }}
+                {{ __('Scheduled for :time', ['time' => LocalTime::format($order->pickup_at, 'day_date_time')]) }}
             @endif
         </flux:callout.text>
     </flux:callout>
@@ -72,8 +68,7 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         @foreach ($order->items as $item)
             <li class="flex items-start justify-between gap-3 p-4" wire:key="item-{{ $item->id }}" data-test="receipt-line">
                 <div class="min-w-0">
-                    <flux:heading>{{ $item->name_en }} × {{ $item->quantity }}</flux:heading>
-                    <flux:text>{{ $item->name_zh }}</flux:text>
+                    <flux:heading>{{ __(':drink × :quantity', ['drink' => $item->localizedName(), 'quantity' => $item->quantity]) }}</flux:heading>
                     @foreach ($item->modifierSummary() as $group)
                         <flux:text size="sm" class="mt-1" data-test="modifier-group">{{ $group }}</flux:text>
                     @endforeach

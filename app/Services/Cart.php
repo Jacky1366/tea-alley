@@ -148,7 +148,7 @@ final class Cart
                 $invalid[] = new InvalidCartLine(
                     $key,
                     $line['quantity'],
-                    $item->name_en,
+                    $item->localizedName(),
                     array_values(array_unique(array_merge(...array_values($e->errors())))),
                 );
             }

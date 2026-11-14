@@ -9,8 +9,19 @@
 
             <flux:spacer />
 
-            <nav class="flex items-center gap-2" data-test="public-nav">
+            <nav class="flex items-center gap-1 sm:gap-2" data-test="public-nav">
                 <livewire:cart-badge />
+
+                {{-- Language switch: shows the language it switches to, written in that language. --}}
+                @php($otherLocale = \App\Enums\Locale::current()->other())
+                <form method="POST" action="{{ route('locale.switch') }}" data-test="locale-switch">
+                    @csrf
+                    <input type="hidden" name="locale" value="{{ $otherLocale->value }}">
+                    <flux:button type="submit" variant="ghost" size="sm" lang="{{ $otherLocale->htmlLang() }}" :aria-label="__('Switch language')" data-test="locale-switch-button">
+                        {{ $otherLocale->switchLabel() }}
+                    </flux:button>
+                </form>
+
                 @auth
                     {{-- Same pattern as the sidebar's user menu (components/desktop-user-menu). --}}
                     <flux:dropdown position="bottom" align="end">
@@ -69,8 +80,9 @@
                     <flux:button :href="route('login')" variant="ghost" size="sm" wire:navigate>
                         {{ __('Log in') }}
                     </flux:button>
+                    {{-- Hidden on phones so the header fits at 390px in English; the login page links to sign-up. --}}
                     @if (Route::has('register'))
-                        <flux:button :href="route('register')" variant="primary" size="sm" wire:navigate>
+                        <flux:button :href="route('register')" variant="primary" size="sm" class="max-sm:hidden" wire:navigate>
                             {{ __('Register') }}
                         </flux:button>
                     @endif

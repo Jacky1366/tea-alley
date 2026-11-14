@@ -139,9 +139,10 @@ describe('content', function () {
 
         $this->actingAs($this->user)->get(route('orders.show', $order))
             ->assertSeeInOrder([
-                'Receipt Tea × 2', '收據茶', 'Size: Large', 'Toppings: Pearls, Pudding', '$8.25 each', '$16.50',
-                'Receipt Soda × 1', '收據汽水', '$5.00 each', '$5.00',
-            ]);
+                'Receipt Tea × 2', 'Size: Large', 'Toppings: Pearls, Pudding', '$8.25 each', '$16.50',
+                'Receipt Soda × 1', '$5.00 each', '$5.00',
+            ])
+            ->assertDontSee('收據茶');
     });
 
     test('the totals are the order columns, and they add up', function () {
