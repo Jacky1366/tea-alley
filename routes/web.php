@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::livewire('/', 'pages::menu')->name('home');
@@ -17,7 +19,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:view,order')
         ->name('orders.show');
 
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    // Fortify's default destination (config fortify.home). Sends each role to its own home.
+    Route::get('dashboard', function (Request $request) {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        return redirect($user->homeUrl());
+    })->name('dashboard');
 
     Route::view('barista', 'barista')
         ->middleware('role:barista|manager|admin')

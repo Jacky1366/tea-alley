@@ -161,10 +161,11 @@ test('the full seeded menu renders without lazy loading', function () {
 describe('header links', function () {
     beforeEach(fn () => $this->seed(RoleSeeder::class));
 
-    test('customers see the dashboard link but not admin', function () {
+    test('customers see the user menu but not admin', function () {
         $this->actingAs(User::factory()->create()->assignRole('customer'))
             ->get('/')
-            ->assertSee('Dashboard')
+            ->assertSee('data-test="user-menu"', escape: false)
+            ->assertDontSee('data-test="admin-link"', escape: false)
             ->assertDontSee('/admin', escape: false)
             ->assertDontSee('Log in');
     });
@@ -172,7 +173,8 @@ describe('header links', function () {
     test('managers and admins also see the admin link', function (string $role) {
         $this->actingAs(User::factory()->create()->assignRole($role))
             ->get('/')
-            ->assertSee('Dashboard')
+            ->assertSee('data-test="user-menu"', escape: false)
+            ->assertSee('data-test="admin-link"', escape: false)
             ->assertSee('/admin', escape: false);
     })->with(['manager', 'admin']);
 });
