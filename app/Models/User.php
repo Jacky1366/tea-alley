@@ -45,6 +45,9 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
      */
     public const MENU_MANAGER_ROLES = ['manager', 'admin'];
 
+    /** The roles that work the barista board. Matches the /barista route's role middleware. */
+    public const BOARD_ROLES = ['barista', 'manager', 'admin'];
+
     /**
      * Mirrors the database default so it can be read right after create().
      * Strict mode throws on attributes that were never loaded.
@@ -71,6 +74,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
     public function canManageMenu(): bool
     {
         return $this->hasAnyRole(self::MENU_MANAGER_ROLES);
+    }
+
+    public function canUseBaristaBoard(): bool
+    {
+        return $this->hasAnyRole(self::BOARD_ROLES);
     }
 
     /**

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
+use Spatie\Permission\Middleware\RoleMiddleware;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        // Livewire's update requests skip route middleware unless it's listed here. With this,
+        // a page behind role:... (the barista board) checks the role on every action too.
+        Livewire::addPersistentMiddleware([RoleMiddleware::class]);
     }
 
     /**

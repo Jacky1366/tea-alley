@@ -4,6 +4,8 @@ namespace App\Services\Payments;
 
 use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
+use App\Exceptions\InvalidOrderTransition;
+use App\Exceptions\OrderTransitionConflict;
 use App\Models\Order;
 
 /**
@@ -12,13 +14,25 @@ use App\Models\Order;
  */
 final class FakePaymentGateway implements PaymentGateway
 {
+    /**
+     * @throws InvalidOrderTransition the order can't be paid (it was cancelled)
+     * @throws OrderTransitionConflict another request moved it to something other than paid
+     */
     public function startPayment(Order $order): string
     {
-        // Only a pending order is marked paid; the condition makes a repeated call a no-op.
-        Order::query()
-            ->whereKey($order->id)
-            ->where('status', OrderStatus::PendingPayment)
-            ->update(['status' => OrderStatus::Paid, 'paid_at' => now()]);
+        // Already paid (a repeated submit): don't pay again.
+        if (! $order->status->isPaid()) {
+            try {
+                $order->transitionTo(OrderStatus::Paid);
+            } catch (OrderTransitionConflict $conflict) {
+                // A simultaneous submit for the same order got there first. That's only
+                // fine if it paid the order; anything else (cancelled by T2-5's
+                // scheduler) is not a success.
+                if (! $order->refresh()->status->isPaid()) {
+                    throw $conflict;
+                }
+            }
+        }
 
         return route('orders.show', $order);
     }

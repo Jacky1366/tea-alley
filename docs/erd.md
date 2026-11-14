@@ -94,6 +94,7 @@ erDiagram
         string status "OrderStatus"
         string pickup_type "PickupType: asap | scheduled"
         timestamp pickup_at "nullable, UTC"
+        utinyint prep_minutes "snapshot: longest drink prep"
         uint subtotal_cents
         uint discount_cents
         uint gst_cents
@@ -106,6 +107,7 @@ erDiagram
         timestamp ready_at "nullable"
         timestamp picked_up_at "nullable"
         timestamp cancelled_at "nullable"
+        usmallint recalled_count "ready -> preparing count"
     }
 
     order_items {
@@ -146,5 +148,7 @@ erDiagram
 - All `timestamp` columns are UTC. `store_hours.opens_at` and `closes_at` are the exception: they are America/Vancouver wall-clock times, so DST changes don't shift them.
 - Orders snapshot names, tax category, prices, and the promo code at order time. Deleting a menu item, modifier option, or promo code sets the foreign key to null and leaves the snapshot unchanged.
 - Every table except `order_item_modifiers` and `menu_item_modifier_group` also has `created_at` and `updated_at`. They're left out above to keep the diagram short.
-- Index on `orders (status, created_at)` for the barista board and order history.
+- Index on `orders (status, created_at)` for order history.
+- Index on `orders (status, pickup_at)` for the barista board: today's paid, preparing, and ready orders by pickup time.
+- `orders.status` changes only through `Order::transitionTo()`; the legal moves are listed in `OrderStatus::canTransitionTo()`. Each move writes its timestamp: `paid_at`, `started_at` (preparing), `ready_at`, `picked_up_at`, `cancelled_at`. A recall (ready -> preparing) clears `ready_at`, keeps `started_at`, and adds 1 to `recalled_count`.
 - Unique index on `orders (user_id, idempotency_key)`: the same checkout submitted twice gives one order, and a key is only unique per user.

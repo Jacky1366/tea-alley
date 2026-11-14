@@ -26,7 +26,9 @@ class OrderFactory extends Factory
             'promo_code' => null,
             'status' => OrderStatus::PendingPayment,
             'pickup_type' => PickupType::Asap,
-            'pickup_at' => null,
+            // OrderService always stores a pickup time, for ASAP orders the estimate.
+            'pickup_at' => now()->addMinutes(3),
+            'prep_minutes' => 3,
             'subtotal_cents' => $subtotal,
             'discount_cents' => 0,
             'gst_cents' => $gst,
@@ -51,6 +53,38 @@ class OrderFactory extends Factory
             'status' => OrderStatus::Paid,
             'stripe_session_id' => 'cs_test_'.Str::random(24),
             'paid_at' => now(),
+        ]);
+    }
+
+    public function preparing(): static
+    {
+        return $this->paid()->state(fn (): array => [
+            'status' => OrderStatus::Preparing,
+            'started_at' => now(),
+        ]);
+    }
+
+    public function ready(): static
+    {
+        return $this->preparing()->state(fn (): array => [
+            'status' => OrderStatus::Ready,
+            'ready_at' => now(),
+        ]);
+    }
+
+    public function pickedUp(): static
+    {
+        return $this->ready()->state(fn (): array => [
+            'status' => OrderStatus::PickedUp,
+            'picked_up_at' => now(),
+        ]);
+    }
+
+    public function cancelled(): static
+    {
+        return $this->state([
+            'status' => OrderStatus::Cancelled,
+            'cancelled_at' => now(),
         ]);
     }
 }

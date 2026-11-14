@@ -36,7 +36,8 @@ test('staff roles can access the barista page', function (string $role) {
     $this->actingAs($user)
         ->get(route('barista'))
         ->assertOk()
-        ->assertSee('Barista queue — coming in Stage 3');
+        ->assertSee('Barista board')
+        ->assertSee('data-test="barista-board"', escape: false);
 })->with(['barista', 'manager', 'admin']);
 
 test('the database seeder creates 4 roles and 4 verified demo users', function () {

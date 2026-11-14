@@ -33,7 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return redirect($user->homeUrl());
     })->name('dashboard');
 
-    Route::view('barista', 'barista')
+    // Livewire re-applies the role middleware to the board's actions (persistent middleware,
+    // AppServiceProvider), and every action also checks OrderPolicy::advance.
+    Route::livewire('/barista', 'pages::barista-board')
         ->middleware('role:barista|manager|admin')
         ->name('barista');
 });

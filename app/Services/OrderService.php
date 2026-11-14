@@ -98,7 +98,8 @@ final class OrderService
             throw ValidationException::withMessages(['ordering' => __('Online ordering is closed right now.')]);
         }
 
-        $pickupAt = $this->resolvePickup($type, $pickupAt, $now, $drinks);
+        $maxPrep = max(0, ...array_map(fn (ValidatedDrink $drink): int => $drink->item->prep_minutes, $drinks));
+        $pickupAt = $this->resolvePickup($type, $pickupAt, $now, $maxPrep);
         $breakdown = $this->pricing->price($drinks);
 
         $order = $this->insertOrder($user, $idempotencyKey, [
@@ -106,6 +107,7 @@ final class OrderService
             'status' => OrderStatus::PendingPayment,
             'pickup_type' => $type,
             'pickup_at' => $pickupAt->setTimezone(config()->string('app.timezone')), // stored in UTC
+            'prep_minutes' => $maxPrep, // snapshot for the barista board's timer
             'subtotal_cents' => $breakdown->subtotal_cents,
             'discount_cents' => $breakdown->discount_cents,
             'gst_cents' => $breakdown->gst_cents,
@@ -199,14 +201,12 @@ final class OrderService
     }
 
     /**
-     * @param  list<ValidatedDrink>  $drinks  not empty
+     * @param  int  $maxPrep  the longest prep_minutes among the order's drinks
      *
      * @throws ValidationException
      */
-    private function resolvePickup(PickupType $type, ?CarbonInterface $pickupAt, CarbonInterface $now, array $drinks): CarbonImmutable
+    private function resolvePickup(PickupType $type, ?CarbonInterface $pickupAt, CarbonInterface $now, int $maxPrep): CarbonImmutable
     {
-        $maxPrep = max(0, ...array_map(fn (ValidatedDrink $drink): int => $drink->item->prep_minutes, $drinks));
-
         if ($type === PickupType::Asap) {
             return $this->slots->asapEstimate($now, $maxPrep);
         }

@@ -17,6 +17,11 @@
                 <flux:sidebar.item icon="receipt-percent" :href="route('orders.index')" :current="request()->routeIs('orders.*')" wire:navigate data-test="sidebar-orders-link">
                     {{ __('My orders') }}
                 </flux:sidebar.item>
+                @if (auth()->user()->canUseBaristaBoard())
+                    <flux:sidebar.item icon="queue-list" :href="route('barista')" :current="request()->routeIs('barista')" wire:navigate data-test="sidebar-barista-link">
+                        {{ __('Barista board') }}
+                    </flux:sidebar.item>
+                @endif
                 <flux:sidebar.item icon="cog" :href="route('profile.edit')" :current="request()->is('settings/*')" wire:navigate data-test="sidebar-settings-link">
                     {{ __('Settings') }}
                 </flux:sidebar.item>
