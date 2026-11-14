@@ -8,13 +8,18 @@ use App\Support\Money;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /*
- * The receipt. The route's can:view,order middleware (OrderPolicy) has already checked
- * ownership. Everything shown comes from the order's snapshot columns: menu_items and
- * modifier_options are never read, so later menu changes can't alter a receipt.
+ * The receipt, with the order's live status above it. The route's can:view,order
+ * middleware (OrderPolicy) has already checked ownership. Everything shown comes from the
+ * order's snapshot columns: menu_items and modifier_options are never read, so later menu
+ * changes can't alter a receipt.
+ *
+ * Re-rendered when an OrderStatusChanged event arrives on the private orders.{id} channel,
+ * and polled as a fallback (<x-realtime-status>) until the order is picked up or cancelled.
  */
 new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
     #[Locked]
@@ -26,6 +31,28 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
             'items' => fn (HasMany $query) => $query->orderBy('id'),
             'items.modifiers' => fn (HasMany $query) => $query->orderBy('id'),
         ]);
+    }
+
+    /** The progress bar's steps, in order. Recall moves the order back to Preparing. */
+    public const PROGRESS = [OrderStatus::Paid, OrderStatus::Preparing, OrderStatus::Ready, OrderStatus::PickedUp];
+
+    /**
+     * The order changed status. The payload isn't used: $order is read again from the
+     * database on every request.
+     */
+    #[On('echo-private:orders.{order.id},OrderStatusChanged')]
+    public function orderStatusChanged(): void {}
+
+    /** The step label: the first one is "Received" rather than "Paid". */
+    public function stepLabel(OrderStatus $step): string
+    {
+        return $step === OrderStatus::Paid ? __('Received') : $step->label();
+    }
+
+    /** Whether the status can still change, so it's worth listening and polling. */
+    public function isOpen(): bool
+    {
+        return ! in_array($this->order->status, [OrderStatus::PickedUp, OrderStatus::Cancelled], true);
     }
 
     public function money(int $cents): string
@@ -50,6 +77,43 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
             </flux:text>
         </div>
     </div>
+
+    <section class="flex flex-col gap-3" data-test="order-progress-section">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <flux:heading size="lg" level="2">{{ __('Order status') }}</flux:heading>
+            @if ($this->isOpen())
+                <x-realtime-status :channel="'private-orders.'.$order->id" />
+            @endif
+        </div>
+
+        @if ($order->status === OrderStatus::PendingPayment || $order->status === OrderStatus::Cancelled)
+            <flux:text data-test="status-message">{{ $order->status->label() }}</flux:text>
+        @else
+            @php($current = array_search($order->status, self::PROGRESS, true))
+            <ol class="grid grid-cols-4 gap-2" data-test="order-progress">
+                @foreach (self::PROGRESS as $i => $step)
+                    <li
+                        class="flex flex-col gap-1.5"
+                        data-test="progress-step"
+                        data-step="{{ $step->value }}"
+                        data-state="{{ $i < $current ? 'done' : ($i === $current ? 'current' : 'todo') }}"
+                        @if ($i === $current) aria-current="step" @endif
+                    >
+                        <span @class([
+                            'h-1.5 rounded-full',
+                            'bg-green-500' => $i <= $current,
+                            'bg-zinc-200 dark:bg-zinc-700' => $i > $current,
+                        ])></span>
+                        <span @class([
+                            'text-sm',
+                            'font-semibold text-zinc-900 dark:text-white' => $i === $current,
+                            'text-zinc-500 dark:text-zinc-400' => $i !== $current,
+                        ])>{{ $this->stepLabel($step) }}</span>
+                    </li>
+                @endforeach
+            </ol>
+        @endif
+    </section>
 
     <flux:callout icon="clock" data-test="pickup">
         <flux:callout.heading>{{ __('Pickup') }}</flux:callout.heading>
