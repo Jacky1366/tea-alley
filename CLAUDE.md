@@ -37,6 +37,7 @@ If anything fails, stop and report it.
 - Orders snapshot item names and prices at order time.
 - Never edit a migration that's already merged into `main`. Add a new one.
 - Use `config()` in app code. `env()` belongs only in `config/`.
+- Never cache menu or availability data (drinks, options, categories, `is_available`). The menu, drink builder, cart, and checkout read it from the database on every request, so a sold-out toggle takes effect on the next page load.
 
 ## Security rules
 - Every new route needs auth/role middleware or a policy, plus a test that the wrong role is blocked.
