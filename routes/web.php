@@ -9,6 +9,8 @@ Route::livewire('/menu/{item}', 'pages::drink')->name('menu.show');
 Route::livewire('/cart', 'pages::cart')->name('cart');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::livewire('/checkout', 'pages::checkout')->name('checkout');
+
     Route::view('dashboard', 'dashboard')->name('dashboard');
 
     Route::view('barista', 'barista')

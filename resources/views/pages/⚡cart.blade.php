@@ -1,12 +1,10 @@
 <?php
 
-use App\Models\ModifierGroup;
 use App\Services\Cart;
 use App\Services\CartContents;
 use App\Services\OrderingWindow;
 use App\Services\PriceBreakdown;
 use App\Services\PricingService;
-use App\Services\ValidatedDrink;
 use App\Support\Money;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -68,22 +66,6 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
         $this->cartChanged();
     }
 
-    /**
-     * "Size: Large · Toppings: Pearls, Pudding", in display order. Uses the relations
-     * ModifierValidator already loaded, so nothing is lazy loaded.
-     */
-    public function optionSummary(ValidatedDrink $drink): string
-    {
-        return $drink->item->modifierGroups
-            ->map(function (ModifierGroup $group) use ($drink): ?string {
-                $names = $group->options->whereIn('id', $drink->optionIds)->pluck('name_en');
-
-                return $names->isEmpty() ? null : $group->name_en.': '.$names->join(', ');
-            })
-            ->filter()
-            ->join(' · ');
-    }
-
     public function money(int $cents): string
     {
         return Money::format($cents);
@@ -103,6 +85,12 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
     </div>
 
     <x-ordering-banner />
+
+    @if (session('checkout-status'))
+        <flux:callout variant="danger" icon="x-circle" data-test="checkout-status">
+            <flux:callout.text>{{ session('checkout-status') }}</flux:callout.text>
+        </flux:callout>
+    @endif
 
     @foreach (['quantity', 'cart'] as $errorKey)
         @error($errorKey)
@@ -128,7 +116,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                             <div class="min-w-0">
                                 <flux:heading size="lg">{{ $line->drink->item->name_en }}</flux:heading>
                                 <flux:text>{{ $line->drink->item->name_zh }}</flux:text>
-                                @if ($summary = $this->optionSummary($line->drink))
+                                @if ($summary = $line->drink->optionSummary())
                                     <flux:text size="sm" class="mt-1">{{ $summary }}</flux:text>
                                 @endif
                                 <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($line->unit_price_cents)]) }}</flux:text>
@@ -196,8 +184,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
         </div>
 
         @if ($this->canCheckout)
-            {{-- TODO(T1-6): switch to route('checkout') once the checkout route exists. --}}
-            <flux:button :href="url('/checkout')" variant="primary" class="w-full" data-test="checkout-button">
+            <flux:button :href="route('checkout')" variant="primary" class="w-full" data-test="checkout-button">
                 {{ __('Checkout') }}
             </flux:button>
         @else

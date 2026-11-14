@@ -163,12 +163,21 @@ test('order numbers are unique', function () {
         ->toThrow(UniqueConstraintViolationException::class);
 });
 
-test('idempotency keys are unique', function () {
+test('idempotency keys are unique per user', function () {
+    $key = str_repeat('a', 64);
+    $user = User::factory()->create();
+    Order::factory()->for($user)->create(['idempotency_key' => $key]);
+
+    expect(fn () => Order::factory()->for($user)->create(['idempotency_key' => $key]))
+        ->toThrow(UniqueConstraintViolationException::class);
+});
+
+test('different users can use the same idempotency key', function () {
     $key = str_repeat('a', 64);
     Order::factory()->create(['idempotency_key' => $key]);
+    Order::factory()->create(['idempotency_key' => $key]);
 
-    expect(fn () => Order::factory()->create(['idempotency_key' => $key]))
-        ->toThrow(UniqueConstraintViolationException::class);
+    expect(Order::where('idempotency_key', $key)->count())->toBe(2);
 });
 
 test('store hours days of week are unique', function () {

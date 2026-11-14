@@ -99,7 +99,7 @@ erDiagram
         uint gst_cents
         uint pst_cents
         uint total_cents
-        string idempotency_key UK "64"
+        string idempotency_key "64, unique per user"
         string stripe_session_id UK "nullable"
         timestamp paid_at "nullable"
         timestamp started_at "nullable"
@@ -147,3 +147,4 @@ erDiagram
 - Orders snapshot names, tax category, prices, and the promo code at order time. Deleting a menu item, modifier option, or promo code sets the foreign key to null and leaves the snapshot unchanged.
 - Every table except `order_item_modifiers` and `menu_item_modifier_group` also has `created_at` and `updated_at`. They're left out above to keep the diagram short.
 - Index on `orders (status, created_at)` for the barista board and order history.
+- Unique index on `orders (user_id, idempotency_key)`: the same checkout submitted twice gives one order, and a key is only unique per user.
