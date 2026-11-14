@@ -32,7 +32,7 @@ test('guests can view the menu at /', function () {
         ->assertOk()
         ->assertSee('Tea Alley 茶巷')
         ->assertSee('Oolong Classic')
-        ->assertSee('烏龍經典')
+        ->assertDontSee('烏龍經典')
         ->assertSee('$5.00')
         ->assertSee('Log in')
         ->assertSee('Register');
@@ -149,7 +149,7 @@ test('the full seeded menu renders without lazy loading', function () {
     $this->get('/')
         ->assertOk()
         ->assertSee('Brown Sugar Pearl Milk Tea')
-        ->assertSee('黑糖珍珠奶茶')
+        ->assertDontSee('黑糖珍珠奶茶')
         ->assertSee('$6.95');
 
     Livewire::test('pages::menu')

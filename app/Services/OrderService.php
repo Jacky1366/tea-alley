@@ -177,7 +177,7 @@ final class OrderService
             $item = $items->get($line->item->id);
 
             if ($item === null) {
-                $problems[] = __(':drink is no longer on the menu.', ['drink' => $line->item->name_en]);
+                $problems[] = __(':drink is no longer on the menu.', ['drink' => $line->item->localizedName()]);
 
                 continue;
             }
@@ -186,7 +186,7 @@ final class OrderService
                 $drinks[] = $this->validator->validate($item, $line->optionIds, $line->quantity);
             } catch (ValidationException $e) {
                 foreach (array_unique(array_merge(...array_values($e->errors()))) as $reason) {
-                    $problems[] = $item->name_en.': '.$reason;
+                    $problems[] = __(':drink: :reason', ['drink' => $item->localizedName(), 'reason' => $reason]);
                 }
             }
         }

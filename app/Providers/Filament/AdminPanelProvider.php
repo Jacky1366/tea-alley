@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\ForceEnglishLocale;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -54,6 +55,11 @@ class AdminPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])
+            // Admin stays in English. Persistent, so Livewire re-applies it on the panel's
+            // /livewire/update requests after the web group's SetLocale.
+            ->middleware([
+                ForceEnglishLocale::class,
+            ], isPersistent: true)
             ->authMiddleware([
                 Authenticate::class,
             ]);

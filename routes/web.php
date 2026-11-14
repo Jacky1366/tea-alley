@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SwitchLocaleController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -9,6 +10,11 @@ Route::livewire('/', 'pages::menu')->name('home');
 // Public on purpose: browsing, building a drink, and the cart don't need an account; only checkout does.
 Route::livewire('/menu/{item}', 'pages::drink')->name('menu.show');
 Route::livewire('/cart', 'pages::cart')->name('cart');
+
+// Public on purpose: guests switch language too. CSRF-protected by the web group.
+Route::post('/locale', SwitchLocaleController::class)
+    ->middleware('throttle:30,1')
+    ->name('locale.switch');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/checkout', 'pages::checkout')->name('checkout');

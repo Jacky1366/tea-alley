@@ -88,7 +88,7 @@ describe('page', function () {
         $this->get(route('menu.show', $this->drink))
             ->assertOk()
             ->assertSee('Builder Tea')
-            ->assertSee('測試茶')
+            ->assertDontSee('測試茶')
             ->assertSee('$6.00')
             ->assertSeeInOrder(['Size', 'Medium', 'Large', 'XL', 'Toppings', 'Pearls', 'Pudding', 'Grass', 'Milk', 'Oat', 'Soy'])
             ->assertSee('+$0.50')

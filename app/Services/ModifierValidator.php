@@ -93,7 +93,7 @@ final class ModifierValidator
 
             foreach ($inGroup as $option) {
                 if (! $option->is_available) {
-                    $errors[$key][] = __(':option is sold out.', ['option' => $option->name_en]);
+                    $errors[$key][] = __(':option is sold out.', ['option' => $option->localizedName()]);
                 }
             }
 
@@ -102,14 +102,14 @@ final class ModifierValidator
 
             if ($count < $min) {
                 $errors[$key][] = $min === 1
-                    ? __('Choose an option for :group.', ['group' => $group->name_en])
-                    : __('Choose at least :min options for :group.', ['min' => $min, 'group' => $group->name_en]);
+                    ? __('Choose an option for :group.', ['group' => $group->localizedName()])
+                    : __('Choose at least :min options for :group.', ['min' => $min, 'group' => $group->localizedName()]);
             }
 
             if ($count > $group->max_select) {
                 $errors[$key][] = $group->max_select === 1
-                    ? __('Choose only one option for :group.', ['group' => $group->name_en])
-                    : __('Choose at most :max options for :group.', ['max' => $group->max_select, 'group' => $group->name_en]);
+                    ? __('Choose only one option for :group.', ['group' => $group->localizedName()])
+                    : __('Choose at most :max options for :group.', ['max' => $group->max_select, 'group' => $group->localizedName()]);
             }
         }
 

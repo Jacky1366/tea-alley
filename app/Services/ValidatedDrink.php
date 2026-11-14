@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\MenuItem;
-use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
+use App\Support\OptionSummary;
 use Illuminate\Support\Collection;
 
 /**
@@ -34,19 +34,28 @@ final readonly class ValidatedDrink
     }
 
     /**
-     * "Size: Large · Toppings: Pearls, Pudding", in display order, for the cart and
-     * checkout pages. Uses the relations ModifierValidator already loaded, so nothing
-     * is lazy loaded.
+     * "Size: Large · Toppings: Pearls, Pudding" (or "容量：大杯 · 加料：珍珠、布丁"), in
+     * display order and the current language, for the cart and checkout pages. Uses the
+     * relations ModifierValidator already loaded, so nothing is lazy loaded.
      */
     public function optionSummary(): string
     {
-        return $this->item->modifierGroups
-            ->map(function (ModifierGroup $group): ?string {
-                $names = $group->options->whereIn('id', $this->optionIds)->pluck('name_en');
+        $lines = [];
 
-                return $names->isEmpty() ? null : $group->name_en.': '.$names->join(', ');
-            })
-            ->filter()
-            ->join(' · ');
+        foreach ($this->item->modifierGroups as $group) {
+            $names = [];
+
+            foreach ($group->options as $option) {
+                if (in_array($option->id, $this->optionIds, true)) {
+                    $names[] = $option->localizedName();
+                }
+            }
+
+            if ($names !== []) {
+                $lines[] = OptionSummary::line($group->localizedName(), $names);
+            }
+        }
+
+        return OptionSummary::join($lines);
     }
 }
