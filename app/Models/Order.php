@@ -189,7 +189,8 @@ class Order extends Model
         // Only the columns written here: anything else the caller changed stays dirty.
         $this->syncOriginalAttributes($synced);
 
-        // Never throws: the event is ShouldRescue, so a broadcast failure is only reported.
+        // Never throws: the event is ShouldRescue, so a broadcast failure is only reported,
+        // and its listeners (SendOrderReadyNotification) catch and report their own failures.
         OrderStatusChanged::dispatch($this->id, $to);
     }
 

@@ -30,7 +30,7 @@ final class TranslationKeyScanner
         $views = collect(File::allFiles(resource_path('views')))
             ->filter(fn (SplFileInfo $file): bool => str_ends_with($file->getFilename(), '.blade.php'));
 
-        $code = collect(['Actions', 'Concerns', 'Enums', 'Http', 'Listeners', 'Models', 'Services', 'Support', 'View'])
+        $code = collect(['Actions', 'Concerns', 'Enums', 'Http', 'Listeners', 'Models', 'Notifications', 'Services', 'Support', 'View'])
             ->filter(fn (string $dir): bool => is_dir(app_path($dir)))
             ->flatMap(fn (string $dir) => File::allFiles(app_path($dir)));
 
