@@ -49,6 +49,11 @@
                                 <flux:menu.item :href="route('orders.index')" icon="receipt-percent" wire:navigate data-test="my-orders-link">
                                     {{ __('My orders') }}
                                 </flux:menu.item>
+                                @if (auth()->user()->canUseBaristaBoard())
+                                    <flux:menu.item :href="route('barista')" icon="queue-list" wire:navigate data-test="barista-link">
+                                        {{ __('Barista board') }}
+                                    </flux:menu.item>
+                                @endif
                                 @if (auth()->user()->canManageMenu())
                                     {{-- Filament is a separate app, so a normal link rather than wire:navigate. --}}
                                     <flux:menu.item href="/admin" icon="wrench-screwdriver" data-test="admin-link">

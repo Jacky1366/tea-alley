@@ -3,6 +3,8 @@
 use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Enums\PickupType;
+use App\Exceptions\InvalidOrderTransition;
+use App\Exceptions\OrderTransitionConflict;
 use App\Models\MenuItem;
 use App\Models\ModifierGroup;
 use App\Models\ModifierOption;
@@ -177,6 +179,17 @@ describe('placing an order', function () {
 
         expect($order->pickup_at->equalTo(vancouverToday('12:05')))->toBeTrue()
             ->and(DB::table('orders')->value('pickup_at'))->toBe(vancouverToday('12:05')->utc()->format('Y-m-d H:i:s'));
+    });
+
+    test('snapshots the longest prep time for the barista board', function () {
+        // Tea (prep 5) and soda (prep 2).
+        $order = placeFor($this->user, standardCart($this));
+
+        expect($order->prep_minutes)->toBe(5);
+
+        $this->tea->update(['prep_minutes' => 9]);
+
+        expect($order->fresh()->prep_minutes)->toBe(5);
     });
 
     test('changing prices afterwards does not change the order', function () {
@@ -423,5 +436,37 @@ describe('fake payment gateway', function () {
         app(PaymentGateway::class)->startPayment($order);
 
         expect($order->fresh()->paid_at->equalTo($paidAt))->toBeTrue();
+    });
+
+    test('a simultaneous submit that already paid the order is a success', function (OrderStatus $now) {
+        $order = placeFor($this->user, standardCart($this));
+        // The other request paid it (and staff may already have moved it on) after this one loaded it.
+        DB::table('orders')->where('id', $order->id)->update(['status' => $now->value, 'paid_at' => now()->subSecond()]);
+
+        $url = app(PaymentGateway::class)->startPayment($order);
+
+        expect($url)->toBe(url('/orders/'.$order->order_number))
+            ->and($order->fresh()->status)->toBe($now)
+            ->and($order->fresh()->paid_at->equalTo(now()->subSecond()))->toBeTrue();
+    })->with([OrderStatus::Paid, OrderStatus::Preparing, OrderStatus::Ready, OrderStatus::PickedUp]);
+
+    test('a conflict that left the order cancelled is not a success', function () {
+        $order = placeFor($this->user, standardCart($this));
+        // T2-5's scheduler cancelled it after this request loaded it.
+        DB::table('orders')->where('id', $order->id)->update(['status' => OrderStatus::Cancelled->value, 'cancelled_at' => now()]);
+
+        expect(fn () => app(PaymentGateway::class)->startPayment($order))->toThrow(OrderTransitionConflict::class);
+
+        expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)
+            ->and($order->fresh()->paid_at)->toBeNull();
+    });
+
+    test('a cancelled order cannot be paid', function () {
+        $order = placeFor($this->user, standardCart($this));
+        $order->transitionTo(OrderStatus::Cancelled);
+
+        expect(fn () => app(PaymentGateway::class)->startPayment($order))->toThrow(InvalidOrderTransition::class);
+
+        expect($order->fresh()->paid_at)->toBeNull();
     });
 });

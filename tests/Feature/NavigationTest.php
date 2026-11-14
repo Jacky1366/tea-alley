@@ -73,6 +73,17 @@ describe('public header', function () {
         'admin' => ['admin', true],
     ]);
 
+    test('Barista board shows only for staff', function (string $role, bool $sees) {
+        $menu = userMenuHtml($this->actingAs(userWithRole($role))->get(route('home'))->getContent());
+
+        expect(str_contains($menu, 'href="'.route('barista').'"'))->toBe($sees);
+    })->with([
+        'customer' => ['customer', false],
+        'barista' => ['barista', true],
+        'manager' => ['manager', true],
+        'admin' => ['admin', true],
+    ]);
+
     test('logging out from the header ends the session and empties the cart', function () {
         $user = userWithRole('customer');
         $this->actingAs($user);
@@ -106,6 +117,19 @@ describe('sidebar layout', function () {
             ->not->toContain('Documentation')
             ->not->toContain('href="'.route('dashboard').'"');
     });
+});
+
+describe('sidebar Barista board link', function () {
+    test('shows only for staff', function (string $role, bool $sees) {
+        $html = $this->actingAs(userWithRole($role))->get(route('profile.edit'))->assertOk()->getContent();
+
+        expect(str_contains($html, 'data-test="sidebar-barista-link"'))->toBe($sees);
+    })->with([
+        'customer' => ['customer', false],
+        'barista' => ['barista', true],
+        'manager' => ['manager', true],
+        'admin' => ['admin', true],
+    ]);
 });
 
 test('no layout or shared component mentions Laravel or links to the starter kit', function () {
