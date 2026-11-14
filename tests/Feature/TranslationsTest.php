@@ -69,9 +69,15 @@ test('translations keep the same :placeholders as their keys', function () {
     expect($mismatched)->toBe([]);
 });
 
-test('every zh_TW.json key is still used, or is a vendor pagination string', function () {
+test('every zh_TW.json key is still used, or is a vendor pagination or mail string', function () {
     $used = array_keys(TranslationKeyScanner::scan()['keys']);
-    $vendor = ['Showing', 'to', 'of', 'results', 'Go to page :page', 'Pagination Navigation'];
+    $vendor = [
+        'Showing', 'to', 'of', 'results', 'Go to page :page', 'Pagination Navigation',
+        // Laravel's notification email template and mail layout (OrderReadyNotification).
+        "If you're having trouble clicking the \":actionText\" button, copy and paste the URL below
+into your web browser:",
+        'All rights reserved.',
+    ];
 
     expect(array_values(array_diff(array_keys(zhJson()), $used, $vendor)))->toBe([]);
 });
