@@ -15,14 +15,31 @@
 - Branch names: `feature/T0-4-xxx`, `fix/...`, `chore/...`
 - Conventional Commits: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `ci:`
 - Never add `Co-Authored-By` or `Claude-Session` lines.
-- Never commit unless asked. Never push to `main` directly.
+- Commit only as part of the ticket flow (after all checks pass), or
+  when Jacky asks. Never commit unrelated or unreviewed changes.
+- Never push to `main` directly.
+
+### Ticket lanes
+Fast lane (when Jacky says "fast lane"):
+- Write the GitHub issue yourself from the Development Plan
+  (`gh issue create`), then plan.
+- For every open question that has a clear recommended default, take the
+  default and keep going. List every decision you made in the final
+  summary under "Decisions I made".
+- Stop and ask ONLY if a question changes: auth/permissions, money or tax
+  math, the DB schema of existing tables, or anything irreversible.
+- Then implement, run all checks, browser check, open PR, merge per the
+  Merging rules.
+
+Full review (default if Jacky doesn't say "fast lane"):
+- Plan first, wait for answers, as today.
 
 ### Merging
 - After opening the PR, wait for CI with `gh pr checks <N> --watch`.
 - Merge only if every check is green AND the browser check passed:
   `gh pr merge <N> --merge --delete-branch`.
 - If CI fails, fix it on the same branch and push again. Never merge red,
-  never use `--admin`, never merge a PR you didn't open in this session.
+  never use `--admin`, never merge a PR you didn't open, unless Jacky explicitly asks you to.
 - After merging: `git checkout main`, `git pull`, then run the post-pull
   checklist (`composer install`, `php artisan migrate`, `npm run build`,
   `php artisan config:clear`) and confirm the issue auto-closed with
