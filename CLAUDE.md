@@ -22,7 +22,9 @@
 ### Ticket lanes
 Fast lane (when Jacky says "fast lane"):
 - Write the GitHub issue yourself from the Development Plan
-  (`gh issue create`), then plan.
+  (`docs/development-plan.md`) with `gh issue create`, then plan.
+  Where the plan differs from a GitHub issue, the decision log, or this
+  file, those win: the plan is the starting point, not the final spec.
 - For every open question that has a clear recommended default, take the
   default and keep going. List every decision you made in the final
   summary under "Decisions I made".
