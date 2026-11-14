@@ -63,6 +63,21 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
     }
 
     /**
+     * Where this user lands by default: /dashboard redirects here, and Fortify sends every
+     * login, registration, and verification to /dashboard unless an intended URL wins.
+     * Managers and admins go to the admin panel, baristas to the barista page, everyone
+     * else to the menu.
+     */
+    public function homeUrl(): string
+    {
+        return match (true) {
+            $this->canManageMenu() => url('/admin'),
+            $this->hasRole('barista') => route('barista'),
+            default => route('home'),
+        };
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
