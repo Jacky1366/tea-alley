@@ -30,6 +30,33 @@ class OrderPolicy
     }
 
     /**
+     * Retry paying for an order: only its customer, and only while it's waiting for payment.
+     * Someone else's order is a 404, as in view().
+     */
+    public function pay(User $user, Order $order): Response
+    {
+        if ($order->user_id !== $user->id) {
+            return Response::denyAsNotFound();
+        }
+
+        return $order->status === OrderStatus::PendingPayment
+            ? Response::allow()
+            : Response::deny(__('This order can no longer be paid.'));
+    }
+
+    /**
+     * The demo's "Simulate payment" button: local environment only, an admin, and only on
+     * their own pending order (an admin can't open anyone else's receipt anyway).
+     */
+    public function simulatePayment(User $user, Order $order): bool
+    {
+        return app()->environment('local')
+            && $user->hasRole('admin')
+            && $order->user_id === $user->id
+            && $order->status === OrderStatus::PendingPayment;
+    }
+
+    /**
      * Open the barista board.
      */
     public function viewBoard(User $user): bool

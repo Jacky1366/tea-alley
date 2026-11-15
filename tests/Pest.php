@@ -3,6 +3,9 @@
 use App\Models\StoreHour;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Stripe\StripeClient;
+use Tests\Support\FakeStripeHttpClient;
 use Tests\TestCase;
 
 /*
@@ -71,4 +74,40 @@ function setStoreHours(array $days, int $cutoffMinutes = 15): void
             'ordering_cutoff_minutes' => $cutoffMinutes,
         ]);
     }
+}
+
+/**
+ * Switch the app to the Stripe gateway with a dummy key, and install a fake for the SDK's
+ * HTTP layer. Queue responses on the returned fake; nothing reaches the network.
+ */
+function useStripe(): FakeStripeHttpClient
+{
+    config(['payment.gateway' => 'stripe', 'services.stripe.secret' => 'sk_test_dummy']);
+    app()->forgetInstance(StripeClient::class);
+
+    return FakeStripeHttpClient::install();
+}
+
+/**
+ * A Checkout Session as Stripe's API returns it (only the fields the app reads).
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function stripeSession(array $overrides = []): array
+{
+    $id = $overrides['id'] ?? 'cs_test_'.Str::random(24);
+
+    return [
+        'id' => $id,
+        'object' => 'checkout.session',
+        'status' => 'open',
+        'payment_status' => 'unpaid',
+        'url' => 'https://checkout.stripe.com/c/pay/'.$id,
+        'expires_at' => now()->addMinutes(31)->getTimestamp(),
+        'amount_total' => null,
+        'currency' => 'cad',
+        'metadata' => [],
+        ...$overrides,
+    ];
 }

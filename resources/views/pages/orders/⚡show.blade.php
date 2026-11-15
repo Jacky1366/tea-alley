@@ -1,11 +1,16 @@
 <?php
 
+use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Enums\PickupType;
+use App\Exceptions\InvalidOrderTransition;
+use App\Exceptions\OrderTransitionConflict;
+use App\Exceptions\PaymentUnavailable;
 use App\Models\Order;
 use App\Support\LocalTime;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -25,8 +30,29 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
     #[Locked]
     public Order $order;
 
+    /**
+     * Where the customer came back from Stripe: "success", "cancelled", or "" (any other
+     * visit). Display only: it picks the wording for a pending order, nothing more.
+     */
+    #[Locked]
+    public string $checkoutReturn = '';
+
+    /**
+     * Why paying didn't start (from checkout's flash, or from Retry / Simulate payment on this
+     * page). A property rather than a flash: the page polls, and a flash is gone by the
+     * second refresh.
+     */
+    #[Locked]
+    public string $paymentMessage = '';
+
     public function mount(Order $order): void
     {
+        $flashed = session('payment-status');
+        $this->paymentMessage = is_string($flashed) ? $flashed : '';
+
+        $return = request()->query('checkout');
+        $this->checkoutReturn = in_array($return, ['success', 'cancelled'], true) ? $return : '';
+
         $this->order = $order->load([
             'items' => fn (HasMany $query) => $query->orderBy('id'),
             'items.modifiers' => fn (HasMany $query) => $query->orderBy('id'),
@@ -47,6 +73,66 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
     public function stepLabel(OrderStatus $step): string
     {
         return $step === OrderStatus::Paid ? __('Received') : $step->label();
+    }
+
+    /**
+     * Pay again for this pending order: reuses the open Stripe Session, or starts a new one.
+     * Same order, never a new one. Only its customer, only while it's pending (OrderPolicy::pay).
+     */
+    public function retryPayment(): void
+    {
+        $order = $this->order->refresh();
+
+        if (! $this->canPay($order)) {
+            return;
+        }
+
+        try {
+            $this->redirect(app(PaymentGateway::class)->startPayment($order));
+        } catch (PaymentUnavailable) {
+            $this->paymentMessage = __("We couldn't start the payment. Please try again.");
+        } catch (InvalidOrderTransition|OrderTransitionConflict) {
+            $this->paymentMessage = __('This order can no longer be paid.');
+        }
+    }
+
+    /**
+     * Demo backup: mark the admin's own pending order paid without Stripe. Local environment
+     * only (OrderPolicy::simulatePayment); goes through the state machine like the webhook.
+     */
+    public function simulatePayment(): void
+    {
+        $order = $this->order->refresh();
+
+        $this->authorize('simulatePayment', $order);
+
+        try {
+            $order->transitionTo(OrderStatus::Paid);
+            $this->paymentMessage = '';
+        } catch (InvalidOrderTransition|OrderTransitionConflict) {
+            $this->paymentMessage = __('This order can no longer be paid.');
+        }
+    }
+
+    /**
+     * Someone else's order is a 404; an order that isn't pending any more gets a message
+     * (it was probably paid or cancelled while the page was open), not an error page.
+     */
+    private function canPay(Order $order): bool
+    {
+        $response = Gate::inspect('pay', $order);
+
+        if ($response->allowed()) {
+            return true;
+        }
+
+        if ($response->status() === 404) {
+            abort(404);
+        }
+
+        $this->paymentMessage = $response->message() ?? __('This order can no longer be paid.');
+
+        return false;
     }
 
     /** Whether the status can still change, so it's worth listening and polling. */
@@ -86,7 +172,32 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
             @endif
         </div>
 
-        @if ($order->status === OrderStatus::PendingPayment || $order->status === OrderStatus::Cancelled)
+        {{-- Hidden once the order is paid: the message no longer applies. --}}
+        @if ($paymentMessage !== '' && in_array($order->status, [OrderStatus::PendingPayment, OrderStatus::Cancelled], true))
+            <flux:callout variant="warning" icon="exclamation-triangle" data-test="payment-status">
+                <flux:callout.text>{{ $paymentMessage }}</flux:callout.text>
+            </flux:callout>
+        @endif
+
+        @if ($order->status === OrderStatus::PendingPayment)
+            @if ($checkoutReturn === 'success')
+                {{-- Back from Stripe after paying: the webhook marks it paid, and the page updates itself. --}}
+                <flux:text data-test="status-message">{{ __('Confirming your payment…') }}</flux:text>
+            @else
+                <div class="flex flex-col items-start gap-3" data-test="payment-incomplete">
+                    <flux:text data-test="status-message">{{ __('Payment not completed.') }}</flux:text>
+                    <flux:button variant="primary" wire:click="retryPayment" wire:loading.attr="disabled" wire:target="retryPayment" data-test="retry-payment">
+                        {{ __('Retry payment') }}
+                    </flux:button>
+                </div>
+            @endif
+
+            @can('simulatePayment', $order)
+                <flux:button size="sm" wire:click="simulatePayment" class="self-start" data-test="simulate-payment">
+                    {{ __('Simulate payment') }}
+                </flux:button>
+            @endcan
+        @elseif ($order->status === OrderStatus::Cancelled)
             <flux:text data-test="status-message">{{ $order->status->label() }}</flux:text>
         @else
             @php($current = array_search($order->status, self::PROGRESS, true))

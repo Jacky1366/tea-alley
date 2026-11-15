@@ -101,7 +101,8 @@ erDiagram
         uint pst_cents
         uint total_cents
         string idempotency_key "64, unique per user"
-        string stripe_session_id UK "nullable"
+        string stripe_session_id UK "nullable, current Checkout Session"
+        timestamp payment_expires_at "nullable, when that Session expires"
         timestamp paid_at "nullable"
         timestamp started_at "nullable"
         timestamp ready_at "nullable"

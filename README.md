@@ -55,6 +55,29 @@ VITE_REVERB_PORT=443 npm run build
 
 Rebuild with the default (`npm run build`) when you go back to `https://tea-alley.test`.
 
+### Payments (Stripe Checkout, test mode)
+
+With `PAYMENT_GATEWAY=fake` (the default) orders are marked paid as soon as they're placed. To pay through Stripe instead, set these in your local `.env`. Never commit them: the repository is public.
+
+| Variable | Value |
+| --- | --- |
+| `PAYMENT_GATEWAY` | `stripe` |
+| `STRIPE_SECRET` | A **test-mode** secret key from the Stripe Dashboard (Developers → API keys). A restricted key with only *Checkout Sessions: Write* is enough. |
+| `STRIPE_WEBHOOK_SECRET` | The `whsec_…` secret of the Stripe CLI: after `stripe login`, run `stripe listen --print-secret`. |
+
+Only the Stripe webhook marks an order paid, so Stripe must be able to reach the app. Forward its events with the Stripe CLI in a second terminal:
+
+```bash
+stripe listen --forward-to https://tea-alley.test/stripe/webhook
+```
+
+- Pay with the test card `4242 4242 4242 4242`, any future date, any CVC.
+- Orders still waiting for payment are cancelled by Stripe's `expired` event, or by `php artisan orders:cancel-stale` (every 5 minutes when the scheduler runs: `php artisan schedule:work`).
+- On `local`, an admin's own pending order has a **Simulate payment** button: a demo backup when Stripe or the tunnel is down.
+- Tests and CI never use Stripe: `phpunit.xml` sets `PAYMENT_GATEWAY=fake` and empty keys, and every test fails if anything tries to reach Stripe's API.
+- The payment methods Checkout offers are set in the Stripe Dashboard (Settings → Payment methods), not in code: since API version 2026-10-28 Stripe rejects `payment_method_types`. Leave only **Cards** on for the demo. A delayed method would work too: the order is marked paid when `checkout.session.async_payment_succeeded` arrives.
+- Behind a tunnel or in production, add a webhook endpoint in the Stripe Dashboard for `https://<APP_URL host>/stripe/webhook` (events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `checkout.session.expired`). Its signing secret is different from the CLI's.
+
 ## Demo accounts
 
 Seeded by `DemoUserSeeder` (never in production). All accounts are email-verified.
