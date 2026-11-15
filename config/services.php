@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Stripe Checkout (T2-5). Only the secret key and the webhook signing secret are used:
+    // Checkout is a hosted redirect, so the app never needs the publishable key.
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
 ];

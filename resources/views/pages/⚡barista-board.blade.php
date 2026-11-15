@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Support\LocalTime;
 use Carbon\CarbonInterface;
 use Flux\Flux;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Livewire\Attributes\Computed;
@@ -17,7 +18,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 /*
- * The barista board: today's paid, preparing, and ready orders. Re-rendered when an
+ * The barista board: today's paid and preparing orders, and every ready order. Re-rendered when an
  * OrderStatusChanged event arrives on the private "barista" channel, and polled as a
  * fallback: every 30 seconds while live, every 5 seconds when Reverb is unreachable
  * (<x-realtime-status>).
@@ -37,8 +38,10 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
     }
 
     /**
-     * Today's (Vancouver date) orders in the board's columns, by pickup time. Three queries
-     * however many orders there are: orders, their items, the items' modifiers.
+     * Paid and preparing orders picked up today (Vancouver date), and every ready order
+     * whatever its date: a drink nobody collected stays on the board until it's picked up,
+     * instead of vanishing at midnight. By pickup time, so the oldest ready order is first.
+     * Three queries however many orders there are: orders, their items, the items' modifiers.
      *
      * @return Collection<int, Order>
      */
@@ -48,9 +51,12 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
         $today = now(config()->string('app.display_timezone'))->startOfDay();
 
         return Order::query()
-            ->whereIn('status', self::COLUMNS)
-            ->where('pickup_at', '>=', $today->utc())
-            ->where('pickup_at', '<', $today->addDay()->utc())
+            ->where(fn (Builder $query) => $query
+                ->where('status', OrderStatus::Ready)
+                ->orWhere(fn (Builder $open) => $open
+                    ->whereIn('status', [OrderStatus::Paid, OrderStatus::Preparing])
+                    ->where('pickup_at', '>=', $today->utc())
+                    ->where('pickup_at', '<', $today->addDay()->utc())))
             ->with([
                 // OrderItem::modifierSummary() relies on modifiers being in insert order.
                 'items' => fn (HasMany $query) => $query->orderBy('id'),
@@ -61,9 +67,6 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
             ->get();
     }
 
-    /**
-     * @return Collection<int, Order>
-     */
     /**
      * An order changed status somewhere. The payload isn't used: the board is drawn again
      * from the database.
@@ -131,9 +134,19 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
         Flux::toast(text: __('This order was already updated.'), variant: 'warning');
     }
 
+    /**
+     * "2:15 PM" for today; "Fri 2:15 PM" for a ready order left over from an earlier day.
+     */
     public function pickupTime(Order $order): string
     {
-        return $order->pickup_at === null ? '' : LocalTime::format($order->pickup_at, 'time');
+        if ($order->pickup_at === null) {
+            return '';
+        }
+
+        $timezone = config()->string('app.display_timezone');
+        $today = $order->pickup_at->setTimezone($timezone)->isSameDay(now($timezone));
+
+        return LocalTime::format($order->pickup_at, $today ? 'time' : 'day_time');
     }
 
     /**

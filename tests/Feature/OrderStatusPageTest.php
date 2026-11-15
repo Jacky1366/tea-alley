@@ -56,12 +56,15 @@ describe('progress bar', function () {
             ->toBe(['paid' => 'done', 'preparing' => 'current', 'ready' => 'todo', 'picked_up' => 'todo']);
     });
 
-    test('a pending order says it is waiting for payment, with no progress bar', function () {
+    test('a pending order says the payment is not completed and offers a retry, with no progress bar', function () {
+        // T2-5 (#38): the wording for a pending order opened directly (or back from Stripe's
+        // cancel URL); StripeCheckoutTest covers the "confirming" wording after paying.
         $html = statusPage(Order::factory()->create(['status' => OrderStatus::PendingPayment]));
 
         expect($html)->toContain('data-test="status-message"')
             ->and(progressSteps($html))->toBe([])
-            ->and($html)->toMatch('/data-test="status-message"[^>]*>\s*Payment pending/');
+            ->and($html)->toMatch('/data-test="status-message"[^>]*>\s*Payment not completed\./')
+            ->and($html)->toContain('data-test="retry-payment"');
     });
 
     test('a cancelled order says it was cancelled, with no progress bar', function () {

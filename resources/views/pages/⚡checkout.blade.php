@@ -1,8 +1,10 @@
 <?php
 
 use App\Contracts\PaymentGateway;
-use App\Enums\OrderStatus;
 use App\Enums\PickupType;
+use App\Exceptions\InvalidOrderTransition;
+use App\Exceptions\OrderTransitionConflict;
+use App\Exceptions\PaymentUnavailable;
 use App\Models\User;
 use App\Services\Cart;
 use App\Services\CartContents;
@@ -131,13 +133,21 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
             $this->idempotencyKey,
         );
 
-        // A repeated submit returns the already-paid order; the gateway doesn't charge it again.
-        $url = app(PaymentGateway::class)->startPayment($order);
+        // The order exists now, so the cart's job is done: a failed or abandoned payment is
+        // retried from the receipt page, never by checking out again.
+        app(Cart::class)->clear();
+        $this->dispatch('cart-updated');
 
-        // Empty the cart only once payment has succeeded.
-        if ($order->refresh()->status === OrderStatus::Paid) {
-            app(Cart::class)->clear();
-            $this->dispatch('cart-updated');
+        // A repeated submit returns the same order; the gateway doesn't charge it twice.
+        try {
+            $url = app(PaymentGateway::class)->startPayment($order);
+        } catch (PaymentUnavailable) {
+            session()->flash('payment-status', __("We couldn't start the payment. Please try again."));
+            $url = route('orders.show', $order);
+        } catch (InvalidOrderTransition|OrderTransitionConflict) {
+            // A repeated submit for an order that was cancelled in the meantime.
+            session()->flash('payment-status', __('This order can no longer be paid.'));
+            $url = route('orders.show', $order);
         }
 
         $this->redirect($url);

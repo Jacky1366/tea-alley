@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $total_cents
  * @property string $idempotency_key
  * @property string|null $stripe_session_id
+ * @property CarbonImmutable|null $payment_expires_at
  * @property CarbonImmutable|null $paid_at
  * @property CarbonImmutable|null $started_at
  * @property CarbonImmutable|null $ready_at
@@ -65,6 +66,7 @@ class Order extends Model
         'total_cents',
         'idempotency_key',
         'stripe_session_id',
+        'payment_expires_at',
         'paid_at',
         'started_at',
         'ready_at',
@@ -97,6 +99,7 @@ class Order extends Model
             'gst_cents' => 'integer',
             'pst_cents' => 'integer',
             'total_cents' => 'integer',
+            'payment_expires_at' => 'datetime',
             'paid_at' => 'datetime',
             'started_at' => 'datetime',
             'ready_at' => 'datetime',
@@ -192,6 +195,21 @@ class Order extends Model
         // Never throws: the event is ShouldRescue, so a broadcast failure is only reported,
         // and its listeners (SendOrderReadyNotification) catch and report their own failures.
         OrderStatusChanged::dispatch($this->id, $to);
+    }
+
+    /**
+     * The receipt on APP_URL, for links that leave the current request: emails and Stripe's
+     * return URLs. Not route()'s absolute URL, which takes its host from the current request
+     * (a barista's Bump, a forged Host header). Redirects within the customer's own request
+     * can keep using route().
+     *
+     * @param  array<string, string>  $query
+     */
+    public function receiptUrl(array $query = []): string
+    {
+        $url = rtrim(config()->string('app.url'), '/').route('orders.show', $this, absolute: false);
+
+        return $query === [] ? $url : $url.'?'.http_build_query($query);
     }
 
     /**

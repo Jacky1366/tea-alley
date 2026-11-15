@@ -151,6 +151,32 @@ describe('what the board shows', function () {
         }
     });
 
+    test('ready orders from earlier days stay in the Ready column, oldest first; paid and preparing do not', function () {
+        // T2-5 (#38): a drink nobody collected doesn't vanish from the board at midnight.
+        $readyToday = boardOrder(OrderStatus::Ready, boardTime('2026-11-14 22:40'));
+        $readyYesterday = boardOrder(OrderStatus::Ready, boardTime('2026-11-13 15:00'));
+        $readyLastWeek = boardOrder(OrderStatus::Ready, boardTime('2026-11-07 12:30'));
+        $paidYesterday = boardOrder(OrderStatus::Paid, boardTime('2026-11-13 15:00'));
+        $preparingYesterday = boardOrder(OrderStatus::Preparing, boardTime('2026-11-13 15:00'));
+
+        $html = Livewire::actingAs($this->barista)->test(BOARD)->html();
+
+        expect(columnOrders($html, OrderStatus::Ready))
+            ->toBe([$readyLastWeek->order_number, $readyYesterday->order_number, $readyToday->order_number])
+            ->and($html)->not->toContain($paidYesterday->order_number)
+            ->and($html)->not->toContain($preparingYesterday->order_number);
+    });
+
+    test('a leftover ready order shows its day as well as its time', function () {
+        boardOrder(OrderStatus::Ready, boardTime('2026-11-13 15:00'));  // Friday
+        boardOrder(OrderStatus::Ready, boardTime('2026-11-14 22:40'));  // today
+
+        Livewire::actingAs($this->barista)->test(BOARD)
+            ->assertSee('Fri 3:00 PM')
+            ->assertSee('10:40 PM')
+            ->assertDontSee('Sat 10:40 PM');
+    });
+
     test('a card shows the order number, pickup time, drinks with quantities and options', function () {
         $order = boardOrder(OrderStatus::Paid, boardTime('2026-11-14 23:15'));
 

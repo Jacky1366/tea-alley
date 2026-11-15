@@ -51,13 +51,10 @@ class OrderReadyNotification extends Notification
     }
 
     /**
-     * The receipt on APP_URL. Not route()'s absolute URL: that takes its host from the
-     * current request, which is the barista's Bump. A forged Host header would put the
-     * attacker's domain in the customer's email, and a barista on another host would
-     * send a link the customer can't open.
+     * The receipt on APP_URL (Order::receiptUrl), never the host of the barista's request.
      */
     public function receiptUrl(): string
     {
-        return rtrim(config()->string('app.url'), '/').route('orders.show', $this->order, absolute: false);
+        return $this->order->receiptUrl();
     }
 }
