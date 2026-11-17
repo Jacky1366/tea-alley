@@ -151,6 +151,24 @@ describe('what the email says', function () {
             ->not->toContain('trouble clicking');
     });
 
+    test('lists every drink of an order with several, each with its options (#41)', function () {
+        $order = readyTestOrder(OrderStatus::Preparing);
+        foreach (['Taro Slush', 'Jasmine Green Tea'] as $name) {
+            $item = OrderItem::factory()->for($order)->create(['name_en' => $name, 'quantity' => 1]);
+            OrderItemModifier::factory()->for($item)->create(['group_name_en' => 'Ice', 'name_en' => 'Less']);
+        }
+
+        $order->transitionTo(OrderStatus::Ready);
+
+        [$email] = sentEmails();
+
+        expect(sentEmails())->toHaveCount(1)
+            ->and($email->getTextBody())
+            ->toContain('2 × Classic Milk Tea — Sugar: Half · Toppings: Pearls')
+            ->toContain('1 × Taro Slush — Ice: Less')
+            ->toContain('1 × Jasmine Green Tea — Ice: Less');
+    });
+
     test('in English for an English customer', function () {
         $order = readyTestOrder(OrderStatus::Preparing, null);
         app()->setLocale('zh_TW');  // a barista working in Chinese

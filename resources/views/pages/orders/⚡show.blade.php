@@ -53,7 +53,20 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         $return = request()->query('checkout');
         $this->checkoutReturn = in_array($return, ['success', 'cancelled'], true) ? $return : '';
 
-        $this->order = $order->load([
+        $this->order = $order;
+    }
+
+    /**
+     * Load what the receipt shows before every render, not only on mount: Livewire keeps a
+     * model property as its class and key and re-queries it without relations on each
+     * request ($refresh, a status event, an action), so a load in mount() is gone by the
+     * first update (#41). Ordered by id because OrderItem::modifierSummary() relies on
+     * modifiers being in insert order; this also replaces the unordered reload that
+     * refresh() does in the actions.
+     */
+    public function rendering(): void
+    {
+        $this->order->load([
             'items' => fn (HasMany $query) => $query->orderBy('id'),
             'items.modifiers' => fn (HasMany $query) => $query->orderBy('id'),
         ]);

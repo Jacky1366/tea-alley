@@ -3,6 +3,7 @@
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderItemModifier;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
@@ -127,5 +128,60 @@ describe('live updates', function () {
         expect($queries)->not->toBe([])
             ->and(collect($queries)->filter(fn (string $sql) => preg_match('/\b(menu_items|modifier_options|modifier_groups|categories)\b/', $sql))->all())
             ->toBe([]);
+    });
+});
+
+/**
+ * Add $count drinks to $order, each with a Sugar and a Toppings option, named "Drink 1",
+ * "Drink 2", ... Several items per order is what makes strict mode catch a lazy load:
+ * it only throws when more than one model was loaded together (#41).
+ */
+function addDrinksWithOptions(Order $order, int $count): void
+{
+    for ($i = $order->items()->count() + 1; $order->items()->count() < $count; $i++) {
+        $item = OrderItem::factory()->for($order)->create(['name_en' => "Drink {$i}", 'quantity' => 1]);
+        OrderItemModifier::factory()->for($item)->create(['group_name_en' => 'Sugar', 'name_en' => "Sugar {$i}"]);
+        OrderItemModifier::factory()->for($item)->create(['group_name_en' => 'Toppings', 'name_en' => "Topping {$i}"]);
+    }
+}
+
+describe('orders with several drinks (#41)', function () {
+    test('a live refresh redraws every drink with its options', function (string $refresh) {
+        $order = Order::factory()->preparing()->create();
+        addDrinksWithOptions($order, 5);
+        $page = Livewire::actingAs($order->user)->test(STATUS_PAGE, ['order' => $order]);
+
+        $refresh === 'event'
+            ? $page->dispatch('echo-private:orders.'.$order->id.',OrderStatusChanged', ['order_id' => $order->id, 'status' => 'preparing'])
+            : $page->call('$refresh');
+
+        $page->assertOk()->assertSeeInOrder([
+            'Drink 1', 'Sugar: Sugar 1', 'Toppings: Topping 1',
+            'Drink 3', 'Sugar: Sugar 3', 'Toppings: Topping 3',
+            'Drink 5', 'Sugar: Sugar 5', 'Toppings: Topping 5',
+        ]);
+        expect(substr_count($page->html(), 'data-test="receipt-line"'))->toBe(5);
+    })->with(['$refresh', 'event']);
+
+    test('the number of queries on a refresh does not grow with the number of drinks', function () {
+        $order = Order::factory()->preparing()->create();
+        $page = Livewire::actingAs($order->user)->test(STATUS_PAGE, ['order' => $order]);
+
+        $queriesFor = function (int $drinks) use ($order, $page): int {
+            addDrinksWithOptions($order, $drinks);
+
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $page->call('$refresh');
+            DB::disableQueryLog();
+
+            return count(DB::getQueryLog());
+        };
+
+        $three = $queriesFor(3);
+        $ten = $queriesFor(10);
+
+        expect($page->html())->toContain('Drink 10')
+            ->and($ten)->toBe($three);
     });
 });

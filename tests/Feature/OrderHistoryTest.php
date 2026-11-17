@@ -6,6 +6,7 @@ use App\Models\OrderItem;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-11-18 12:00:00', 'America/Vancouver'));
@@ -155,6 +156,15 @@ describe('queries', function () {
 
         expect(listedNumbers($this->get(route('orders.index'))->getContent()))->toHaveCount(10)
             ->and($forTen)->toBe($forThree);
+    });
+
+    test('a refresh with several multi-drink orders still shows every drink count (#41)', function () {
+        $orders = collect(range(1, 3))->map(fn (int $i) => historyOrder($this->user, $i, [1, 2, 3]));
+
+        $page = Livewire::actingAs($this->user)->test('pages::orders.index');
+        $page->call('$refresh');
+
+        $page->assertOk()->assertSeeInOrder($orders->flatMap(fn (Order $order) => [$order->order_number, '6 drinks'])->all());
     });
 
     test('page 2 costs the same queries as page 1', function () {
