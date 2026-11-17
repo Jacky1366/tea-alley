@@ -3,15 +3,19 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasLocalizedName;
+use App\Models\Contracts\Auditable;
+use App\Observers\AuditObserver;
 use Closure;
 use Database\Factories\MenuItemFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MenuItem extends Model
+#[ObservedBy([AuditObserver::class])]
+class MenuItem extends Model implements Auditable
 {
     /** @use HasFactory<MenuItemFactory> */
     use HasFactory, HasLocalizedName;
@@ -79,5 +83,21 @@ class MenuItem extends Model
         return $this->belongsToMany(ModifierGroup::class)
             ->withPivot('sort_order')
             ->orderByPivot('sort_order');
+    }
+
+    /**
+     * The order lines that snapshot this drink. For sales counts only (T2-9): never read a
+     * line's name or price from the drink, the line has its own snapshot.
+     *
+     * @return HasMany<OrderItem, $this>
+     */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->name_en;
     }
 }

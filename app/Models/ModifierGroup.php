@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class ModifierGroup extends Model
 {
@@ -41,6 +42,20 @@ class ModifierGroup extends Model
     public function effectiveMin(): int
     {
         return max($this->min_select, $this->is_required ? 1 : 0);
+    }
+
+    /**
+     * Deletes the options one by one through Eloquent before the group, so AuditObserver
+     * records each of them (T2-8). The foreign key's ON DELETE CASCADE would remove them
+     * without firing any model event. One transaction: all or nothing.
+     */
+    public function delete(): ?bool
+    {
+        return DB::transaction(function (): ?bool {
+            $this->options()->get()->each(fn (ModifierOption $option) => $option->setRelation('modifierGroup', $this)->delete());
+
+            return parent::delete();
+        });
     }
 
     /**

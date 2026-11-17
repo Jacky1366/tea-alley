@@ -30,11 +30,21 @@ enum OrderStatus: string
     }
 
     /**
+     * Paid, or any later step of making it: the orders that count as sales (T2-9).
+     *
+     * @return list<self>
+     */
+    public static function paidOrLater(): array
+    {
+        return [self::Paid, self::Preparing, self::Ready, self::PickedUp];
+    }
+
+    /**
      * Whether the order has been paid for: paid, or any later step of making it.
      */
     public function isPaid(): bool
     {
-        return in_array($this, [self::Paid, self::Preparing, self::Ready, self::PickedUp], true);
+        return in_array($this, self::paidOrLater(), true);
     }
 
     /**
