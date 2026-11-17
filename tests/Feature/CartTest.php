@@ -9,6 +9,7 @@ use App\Services\ModifierValidator;
 use App\Services\ValidatedDrink;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Js;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -277,6 +278,25 @@ describe('re-validation', function () {
 });
 
 describe('cart page', function () {
+    test('cart buttons render JavaScript actions and loading targets for valid and invalid lines', function () {
+        $this->cart->add(validDrink($this->soda, quantity: 2));
+        $this->cart->add(validDrink($this->tea, [$this->medium]));
+        $this->tea->update(['is_available' => false]);
+
+        $html = $this->get(route('cart'))->assertOk()->getContent();
+        preg_match_all('/wire:(?:click|target)="([^"]*)"/', $html, $matches);
+        $actions = array_map(fn ($value) => html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'), $matches[1]);
+        $validKey = Js::from($this->soda->id.':');
+        $invalidKey = Js::from($this->tea->id.':'.$this->medium->id);
+        $counts = array_count_values($actions);
+
+        expect($counts['setQuantity('.$validKey.', 1)'] ?? 0)->toBe(2)
+            ->and($counts['setQuantity('.$validKey.', 3)'] ?? 0)->toBe(2)
+            ->and($counts['remove('.$validKey.')'] ?? 0)->toBe(2)
+            ->and($counts['remove('.$invalidKey.')'] ?? 0)->toBe(2)
+            ->and($html)->not->toContain('@js(');
+    });
+
     test('guests can open the cart; an empty cart says so and links to the menu', function () {
         $response = $this->get(route('cart'))
             ->assertOk()

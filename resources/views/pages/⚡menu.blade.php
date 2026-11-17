@@ -146,7 +146,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
             <flux:button
                 size="sm"
                 :variant="$this->activeCategory?->is($tab) ? 'primary' : 'ghost'"
-                wire:click="selectCategory(@js($tab->slug))"
+                :wire:click="'selectCategory('.\Illuminate\Support\Js::from($tab->slug).')'"
                 wire:key="tab-{{ $tab->id }}"
                 role="tab"
                 :aria-selected="$this->activeCategory?->is($tab) ? 'true' : 'false'"

@@ -6,6 +6,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\MenuSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Js;
 use Livewire\Livewire;
 
 /**
@@ -79,6 +80,19 @@ test('the category filter shows only that category', function () {
         ->call('selectCategory', '')
         ->assertSee('Oolong Classic')
         ->assertSee('Mango Splash');
+});
+
+test('category tabs render escaped JavaScript actions and loading targets', function () {
+    $slug = "tea'\"<&";
+    Category::factory()->create(['slug' => $slug]);
+
+    $html = $this->get('/')->assertOk()->getContent();
+    preg_match_all('/wire:(?:click|target)="([^"]*)"/', $html, $matches);
+    $actions = array_map(fn ($value) => html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'), $matches[1]);
+    $expected = 'selectCategory('.Js::from($slug).')';
+
+    expect(array_count_values($actions)[$expected] ?? 0)->toBe(2)
+        ->and($html)->not->toContain('@js(');
 });
 
 test('filters are read from the URL so links are shareable', function () {
