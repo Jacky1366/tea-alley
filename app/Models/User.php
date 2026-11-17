@@ -81,6 +81,12 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail, Pas
         return $this->hasAnyRole(self::BOARD_ROLES);
     }
 
+    /** The audit log (T2-8) is admin only: managers make the changes it records. */
+    public function canViewAuditLog(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
     /**
      * Where this user lands by default: /dashboard redirects here, and Fortify sends every
      * login, registration, and verification to /dashboard unless an intended URL wins.

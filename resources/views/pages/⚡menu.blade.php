@@ -2,7 +2,9 @@
 
 use App\Models\Category;
 use App\Models\MenuItem;
+use App\Services\SalesReport;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
@@ -76,9 +78,14 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
         match ($this->sort) {
             'price_asc' => $query->orderBy('price_cents'),
             'price_desc' => $query->orderByDesc('price_cents'),
-            // "Popular" uses the admin-set sort_order for now.
-            // TODO(Stage 2): switch to 30-day sales volume once orders exist.
-            default => $query->orderBy('sort_order'),
+            // "Popular": drinks sold in the last 30 Vancouver days (paid-or-later orders,
+            // SalesReport's definition, the same as the dashboard), counted by menu_item_id so
+            // a renamed drink keeps its sales. Ties, and drinks with no sales, keep the admin's
+            // sort_order. One subquery, read on every request like the rest of the menu.
+            default => $query
+                ->withSum(['orderItems as units_sold' => fn (Builder $lines) => SalesReport::soldSince($lines, SalesReport::recentStart())], 'quantity')
+                ->orderByDesc('units_sold')
+                ->orderBy('sort_order'),
         };
 
         return $query->orderBy('id')->get();
