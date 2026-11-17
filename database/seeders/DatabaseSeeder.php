@@ -20,5 +20,12 @@ class DatabaseSeeder extends Seeder
             StoreHoursSeeder::class,
             DemoUserSeeder::class,
         ]);
+
+        // T3-5: the 20 spare customer accounts (DemoCustomersSeeder, which DemoOrdersSeeder
+        // runs first) and two weeks of their orders, so the dashboard has data.
+        // Local only; DemoOrdersSeeder refuses to run anywhere else.
+        if (app()->environment('local')) {
+            $this->call(DemoOrdersSeeder::class);
+        }
     }
 }

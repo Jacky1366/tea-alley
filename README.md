@@ -106,3 +106,5 @@ Seeded by `DemoUserSeeder` (never in production). All accounts are email-verifie
 | barista@tea-alley.test | password | barista |
 | manager@tea-alley.test | password | manager |
 | admin@tea-alley.test | password | admin |
+
+**Spare customers and demo orders.** In the local environment, `migrate:fresh --seed` also creates `customer01@tea-alley.test` … `customer20@tea-alley.test` (password `password`, verified) and two weeks of their orders for the dashboard. On demo day, while still `APP_ENV=local`, refresh the orders so the 14 days end today (only those 20 customers' orders are replaced): `php artisan db:seed --class=DemoOrdersSeeder`. It refuses to run in production.
