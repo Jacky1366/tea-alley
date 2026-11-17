@@ -14,6 +14,7 @@ use App\Services\PickupSlots;
 use App\Services\PriceBreakdown;
 use App\Services\PricingService;
 use App\Services\ValidatedDrink;
+use App\Support\ActionLimiter;
 use App\Support\LocalTime;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
@@ -117,6 +118,12 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
 
         if (! $user instanceof User) {
             abort(403);
+        }
+
+        // T3-3: per user, not per IP. The idempotency key already stops double orders; this
+        // stops a script from hammering placement (row locks, Stripe Sessions).
+        if (($wait = ActionLimiter::attempt(ActionLimiter::CHECKOUT, $user)) !== null) {
+            throw ValidationException::withMessages(['order' => ActionLimiter::message($wait)]);
         }
 
         $type = PickupType::tryFrom($this->pickupType);

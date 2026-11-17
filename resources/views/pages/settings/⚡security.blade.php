@@ -25,10 +25,15 @@ new #[Title('Security settings')] class extends Component {
     public string $password_confirmation = '';
 
     /* @chisel-2fa */
+    // Locked (T3-3): display only (the 2FA endpoints check for themselves), but the browser
+    // has no reason to change them. Server code still sets them.
+    #[Locked]
     public bool $canManageTwoFactor;
 
+    #[Locked]
     public bool $twoFactorEnabled;
 
+    #[Locked]
     public bool $requiresConfirmation;
     /* @end-chisel-2fa */
 

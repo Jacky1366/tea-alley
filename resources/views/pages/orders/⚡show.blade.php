@@ -7,6 +7,8 @@ use App\Exceptions\InvalidOrderTransition;
 use App\Exceptions\OrderTransitionConflict;
 use App\Exceptions\PaymentUnavailable;
 use App\Models\Order;
+use App\Models\User;
+use App\Support\ActionLimiter;
 use App\Support\LocalTime;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -97,6 +99,15 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         $order = $this->order->refresh();
 
         if (! $this->canPay($order)) {
+            return;
+        }
+
+        // T3-3: per user. Each retry may call Stripe with the order row locked.
+        $user = auth()->user();
+
+        if ($user instanceof User && ($wait = ActionLimiter::attempt(ActionLimiter::RETRY_PAYMENT, $user)) !== null) {
+            $this->paymentMessage = ActionLimiter::message($wait);
+
             return;
         }
 

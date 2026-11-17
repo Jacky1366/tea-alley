@@ -68,8 +68,10 @@ With `PAYMENT_GATEWAY=fake` (the default) orders are marked paid as soon as they
 Only the Stripe webhook marks an order paid, so Stripe must be able to reach the app. Forward its events with the Stripe CLI in a second terminal:
 
 ```bash
-stripe listen --forward-to https://tea-alley.test/stripe/webhook
+stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.expired --forward-to https://tea-alley.test/stripe/webhook
 ```
+
+Current Stripe CLI versions refuse to start without `--events`; these are the three the webhook handles. The CLI's signing secret must match `STRIPE_WEBHOOK_SECRET`, or every webhook is rejected and orders stay unpaid.
 
 - Pay with the test card `4242 4242 4242 4242`, any future date, any CVC.
 - Orders still waiting for payment are cancelled by Stripe's `expired` event, or by `php artisan orders:cancel-stale` (every 5 minutes when the scheduler runs: `php artisan schedule:work`).
