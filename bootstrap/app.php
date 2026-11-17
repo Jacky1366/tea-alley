@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\ThrottleGuestForms;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,6 +31,21 @@ return Application::configure(basePath: dirname(__DIR__))
             return is_string($host) ? ['^'.preg_quote($host).'$'] : [];
         }, subdomains: false);
 
+        // T3-3: the demo tunnel's client runs on this machine and connects to Herd locally, so
+        // only a local process can be the proxy. Trusting just loopback means a visitor's own
+        // X-Forwarded-* headers are never believed, while the tunnel's are: request()->ip() is
+        // the visitor (login throttling), and secure()/url() see https. Never '*'.
+        $middleware->trustProxies(
+            at: ['127.0.0.1', '::1'],
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
+        // Every response, including error pages, Livewire, Filament, and the webhook.
+        $middleware->append(SecurityHeaders::class);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
         ]);
@@ -36,6 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // After the session and auth: reads session('locale'), then users.locale.
         $middleware->web(append: [
             SetLocale::class,
+            ThrottleGuestForms::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

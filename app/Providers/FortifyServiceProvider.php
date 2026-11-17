@@ -85,6 +85,17 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($throttleKey);
         });
 
+        // T3-3 (applied by ThrottleGuestForms). Before login, so only the IP is known, and a
+        // classroom shares one: generous per IP, plus a cap for everyone together that keeps
+        // a sign-up script from burning the Gmail sending quota with verification emails.
+        RateLimiter::for('register', fn (Request $request) => [
+            Limit::perMinutes(10, 30)->by('register:ip:'.$request->ip()),
+            Limit::perHour(100)->by('register:all'),
+        ]);
+
+        // Reset links go out by email too. Laravel also allows one per account per minute.
+        RateLimiter::for('forgot-password', fn (Request $request) => Limit::perMinute(5)->by('forgot-password:ip:'.$request->ip()));
+
         RateLimiter::for('passkeys', function (Request $request) {
             $credentialId = $request->input('credential.id');
 

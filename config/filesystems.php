@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // T3-3: off. Serving would register GET and PUT storage/{path} (signed URLs only);
+            // nothing here uses private file URLs. Drink photos live on the public disk.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

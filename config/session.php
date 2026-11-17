@@ -169,7 +169,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // T3-3: HTTPS-only by default in production (the demo runs behind an https tunnel);
+    // SESSION_SECURE_COOKIE still overrides it, e.g. false for a plain-http scratch server.
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV', 'production') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
