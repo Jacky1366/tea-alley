@@ -78,6 +78,22 @@ stripe listen --forward-to https://tea-alley.test/stripe/webhook
 - The payment methods Checkout offers are set in the Stripe Dashboard (Settings → Payment methods), not in code: since API version 2026-10-28 Stripe rejects `payment_method_types`. Leave only **Cards** on for the demo. A delayed method would work too: the order is marked paid when `checkout.session.async_payment_succeeded` arrives.
 - Behind a tunnel or in production, add a webhook endpoint in the Stripe Dashboard for `https://<APP_URL host>/stripe/webhook` (events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `checkout.session.expired`). Its signing secret is different from the CLI's.
 
+### Email (Gmail SMTP)
+
+To send real mail locally, set `MAIL_MAILER=smtp`, `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, the Gmail address in `MAIL_USERNAME` and `MAIL_FROM_ADDRESS`, and a Gmail **app password** in `MAIL_PASSWORD` (never commit it). Run `php artisan config:clear` after changing `.env`.
+
+**`Unable to connect with STARTTLS … certificate verify failed`.** Something between PHP and Gmail is replacing Gmail's certificate. Check who issued the certificate you're actually getting (Git Bash or macOS Terminal):
+
+```bash
+openssl s_client -connect smtp.gmail.com:587 -starttls smtp </dev/null 2>/dev/null | grep -E "^ *[0-9]+ s:|^ +i:"
+```
+
+- **The issuer is Google Trust Services:** the connection is clean. Check PHP's CA bundle with `php -r "echo ini_get('openssl.cafile');"`. On Windows, Herd sets it to its own `cacert.pem`.
+- **The issuer is `Norton Web/Mail Shield Root` (Windows):** Norton is intercepting outgoing mail. Turn off Norton's outgoing (SMTP) email scanning. Antivirus can stay on.
+- **On the Mac:** Norton isn't installed, so the usual causes are a different antivirus or VPN doing the same thing (the command shows its name as the issuer), or an outdated CA bundle. Run `php -r "print_r(openssl_get_cert_locations());"` and make sure the file it points to exists; Herd's PHP and Homebrew's `ca-certificates` provide one.
+
+Never fix this by turning off TLS verification (`verify_peer=false` or similar): fix whatever is intercepting the connection.
+
 ## Demo accounts
 
 Seeded by `DemoUserSeeder` (never in production). All accounts are email-verified.
