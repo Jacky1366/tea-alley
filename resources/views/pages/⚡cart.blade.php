@@ -128,7 +128,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                                 <flux:button
                                     size="sm"
                                     icon="minus"
-                                    wire:click="setQuantity(@js($line->key), {{ $line->quantity - 1 }})"
+                                    :wire:click="'setQuantity('.\Illuminate\Support\Js::from($line->key).', '.($line->quantity - 1).')'"
                                     :disabled="$line->quantity <= 1"
                                     aria-label="{{ __('Decrease quantity') }}"
                                     data-test="decrease"
@@ -137,13 +137,13 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                                 <flux:button
                                     size="sm"
                                     icon="plus"
-                                    wire:click="setQuantity(@js($line->key), {{ $line->quantity + 1 }})"
+                                    :wire:click="'setQuantity('.\Illuminate\Support\Js::from($line->key).', '.($line->quantity + 1).')'"
                                     :disabled="$line->quantity >= Cart::MAX_PER_LINE"
                                     aria-label="{{ __('Increase quantity') }}"
                                     data-test="increase"
                                 />
                             </div>
-                            <flux:button size="sm" variant="ghost" icon="trash" wire:click="remove(@js($line->key))" data-test="remove">
+                            <flux:button size="sm" variant="ghost" icon="trash" :wire:click="'remove('.\Illuminate\Support\Js::from($line->key).')'" data-test="remove">
                                 {{ __('Remove') }}
                             </flux:button>
                         </div>
@@ -164,7 +164,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                                     <flux:text size="sm" class="text-red-600! dark:text-red-400!" data-test="invalid-reason">{{ $reason }}</flux:text>
                                 @endforeach
                             </div>
-                            <flux:button size="sm" variant="ghost" icon="trash" wire:click="remove(@js($line->key))" data-test="remove-invalid">
+                            <flux:button size="sm" variant="ghost" icon="trash" :wire:click="'remove('.\Illuminate\Support\Js::from($line->key).')'" data-test="remove-invalid">
                                 {{ __('Remove') }}
                             </flux:button>
                         </li>
