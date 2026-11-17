@@ -295,6 +295,27 @@ describe('what the board shows', function () {
             ->and($ten)->toBe($three)
             ->and($three)->toBe(3);  // orders, items, modifiers
     });
+
+    test('orders with several drinks each redraw on a refresh without lazy loading (#41)', function () {
+        $orders = collect(range(1, 3))->map(fn () => boardOrder(OrderStatus::Paid, boardTime('2026-11-14 23:10')));
+        $orders->each(fn (Order $order) => OrderItemModifier::factory()
+            ->for(OrderItem::factory()->for($order)->create(['name_en' => 'Second Drink '.$order->id]))
+            ->create(['group_name_en' => 'Ice', 'name_en' => 'Less']));
+
+        $board = Livewire::actingAs($this->barista)->test(BOARD);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $board->call('$refresh');
+        DB::disableQueryLog();
+
+        $html = $board->html();
+
+        expect(count(DB::getQueryLog()))->toBe(3)
+            ->and(substr_count($html, 'Classic Milk Tea'))->toBe(3)
+            ->and(substr_count($html, 'Ice: Less'))->toBe(3);
+        $orders->each(fn (Order $order) => expect($html)->toContain('Second Drink '.$order->id));
+    });
 });
 
 describe('actions', function () {
