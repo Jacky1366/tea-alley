@@ -38,6 +38,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/barista', 'pages::barista-board')
         ->middleware('role:barista|manager|admin')
         ->name('barista');
+
+    // T3-1: scan a customer's pickup QR with the device camera; the page itself has no actions.
+    Route::livewire('/barista/scan', 'pages::barista.scan')
+        ->middleware('role:barista|manager|admin')
+        ->name('barista.scan');
+
+    // T3-1: where a pickup QR leads. Staff only (a customer gets 403), and only with the
+    // QR's relative signature (no host in it, so tea-alley.test and the tunnel both work).
+    // Opening it changes nothing; "Confirm pickup" is a Livewire action, which Livewire sends
+    // to /livewire/update without the signature: it's protected by the role (persistent
+    // middleware), OrderPolicy::advance, and the order having to be Ready.
+    Route::livewire('/barista/pickup/{order:order_number}', 'pages::barista.pickup')
+        ->middleware(['role:barista|manager|admin', 'signed:relative'])
+        ->name('barista.pickup');
 });
 
 require __DIR__.'/settings.php';

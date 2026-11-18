@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Support\ActionLimiter;
 use App\Support\LocalTime;
 use App\Support\Money;
+use App\Support\PickupQr;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -170,6 +171,21 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         return Money::format($cents);
     }
 
+    /**
+     * T3-1: the link in the pickup QR (staff-only confirmation page, relative signature).
+     * The same on every render, so the QR doesn't change while the page updates.
+     */
+    public function pickupUrl(): string
+    {
+        return PickupQr::url($this->order);
+    }
+
+    /** The pickup QR as an SVG data: URI. */
+    public function pickupQr(): string
+    {
+        return PickupQr::dataUri($this->pickupUrl());
+    }
+
 }; ?>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -249,6 +265,25 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
             </ol>
         @endif
     </section>
+
+    {{-- T3-1: the pickup QR, only while the order is Ready. Part of the normal render, so it
+         appears when the barista bumps (live event or polling) and goes away on Recall. --}}
+    @if ($order->status === OrderStatus::Ready)
+        <section class="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700" data-test="pickup-qr-section">
+            <flux:heading size="lg" level="2">{{ __('Your pickup code') }}</flux:heading>
+            {{-- White in dark mode too: scanners need dark modules on a light background. --}}
+            <div class="w-full max-w-[280px] rounded-xl bg-white p-2">
+                <img
+                    src="{{ $this->pickupQr() }}"
+                    alt="{{ __('Pickup QR code for order :number', ['number' => $order->order_number]) }}"
+                    class="block h-auto w-full"
+                    data-test="pickup-qr"
+                >
+            </div>
+            <flux:heading size="xl" class="tracking-wide" data-test="pickup-qr-number">{{ $order->order_number }}</flux:heading>
+            <flux:text class="text-center">{{ __('Show this QR code at the counter to pick up your drinks.') }}</flux:text>
+        </section>
+    @endif
 
     <flux:callout icon="clock" data-test="pickup">
         <flux:callout.heading>{{ __('Pickup') }}</flux:callout.heading>
