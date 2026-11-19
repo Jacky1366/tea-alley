@@ -78,6 +78,16 @@ test('the same headers from anywhere but loopback are ignored, so TrustHosts rej
     throughTunnel('198.51.100.7', '/__tunnel-whoami')->assertBadRequest();
 });
 
+test('from a non-loopback address, a forged Host is rejected, even when it claims the real host in X-Forwarded-Host', function (array $headers) {
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.50'])
+        ->withHeaders($headers)
+        ->get('http://evil.com/up')
+        ->assertBadRequest();
+})->with([
+    'Host: evil.com' => [[]],
+    'Host: evil.com + X-Forwarded-Host: the tunnel' => [['X-Forwarded-Host' => TUNNEL_HOST, 'X-Forwarded-Proto' => 'https']],
+]);
+
 test('one host in demo mode: tea-alley.test itself is rejected while APP_URL is the tunnel', function () {
     $this->get('https://tea-alley.test/')->assertBadRequest();
 });
