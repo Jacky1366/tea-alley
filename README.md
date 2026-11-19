@@ -47,13 +47,7 @@ php artisan reverb:start
 2. Did you rebuild after changing any `VITE_REVERB_*` value? They're built into the JS: run `npm run build` again (or restart `npm run dev`).
 3. Still nothing: the browser console shows Echo's connection errors.
 
-**Behind a tunnel (T3-6).** The browser connects to Reverb on the page's own host, on the port in `VITE_REVERB_PORT`. Through a single tunnel the page is on port 443, so the tunnel must route `/app/` to `127.0.0.1:8080`, and the assets must be built with `VITE_REVERB_PORT=443`:
-
-```bash
-VITE_REVERB_PORT=443 npm run build
-```
-
-Rebuild with the default (`npm run build`) when you go back to `https://tea-alley.test`.
+**Behind the demo tunnel.** Follow [`docs/demo-runbook.md`](docs/demo-runbook.md): `scripts/demo-mode.ps1 on <tunnel URL>` routes `/app/` to Reverb through Herd and builds with `VITE_REVERB_PORT=443`, and `off` undoes it.
 
 ### Payments (Stripe Checkout, test mode)
 
@@ -78,7 +72,7 @@ Current Stripe CLI versions refuse to start without `--events`; these are the th
 - On `local`, an admin's own pending order has a **Simulate payment** button: a demo backup when Stripe or the tunnel is down.
 - Tests and CI never use Stripe: `phpunit.xml` sets `PAYMENT_GATEWAY=fake` and empty keys, and every test fails if anything tries to reach Stripe's API.
 - The payment methods Checkout offers are set in the Stripe Dashboard (Settings → Payment methods), not in code: since API version 2026-10-28 Stripe rejects `payment_method_types`. Leave only **Cards** on for the demo. A delayed method would work too: the order is marked paid when `checkout.session.async_payment_succeeded` arrives.
-- Behind a tunnel or in production, add a webhook endpoint in the Stripe Dashboard for `https://<APP_URL host>/stripe/webhook` (events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `checkout.session.expired`). Its signing secret is different from the CLI's.
+- In demo mode, `stripe listen` forwards to the tunnel instead: `--forward-to https://<tunnel>/stripe/webhook` (`tea-alley.test` is refused then; see `docs/demo-runbook.md`). For a real deployment, add a webhook endpoint in the Stripe Dashboard for `https://<APP_URL host>/stripe/webhook` (the same three events). Its signing secret is different from the CLI's.
 
 ### Email (Gmail SMTP)
 
