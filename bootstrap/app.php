@@ -6,6 +6,8 @@ use App\Http\Middleware\ThrottleGuestForms;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustHosts;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -42,6 +44,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PORT
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
+
+        // T3-6a: TrustHosts must run after TrustProxies. Laravel puts it first, and TrustProxies
+        // reads the host (its Forge/Vapor check) before it trusts the proxy: through the demo
+        // tunnel (Host rewritten to tea-alley.test for Herd, the public host in
+        // X-Forwarded-Host) that read is checked against APP_URL's host and fails, so every
+        // request was a 400. TrustHosts only sets the allowed hosts, checked whenever the host
+        // is read; after TrustProxies, that is the forwarded host for the loopback proxy only.
+        $middleware->replace(TrustHosts::class, []);
+        $middleware->replace(TrustProxies::class, [TrustProxies::class, TrustHosts::class]);
 
         // Every response, including error pages, Livewire, Filament, and the webhook.
         $middleware->append(SecurityHeaders::class);
