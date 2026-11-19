@@ -26,8 +26,8 @@ class SecurityHeaders
         // e.g. Livewire's error modal and the phone-width iframes used in browser checks.
         'X-Frame-Options' => 'SAMEORIGIN',
         'Content-Security-Policy' => "frame-ancestors 'self'",
-        // The camera stays available to our own pages for T3-1's QR scanner.
-        'Permissions-Policy' => 'camera=(self), microphone=(), geolocation=()',
+        // No page uses the camera, microphone, or location (T3-7 removed the pickup QR scanner).
+        'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
     ];
 
     public function handle(Request $request, Closure $next): Response

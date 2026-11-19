@@ -8,11 +8,9 @@ use App\Models\StoreHour;
 use App\Models\User;
 use App\Services\Cart;
 use App\Services\ModifierValidator;
-use App\Support\PickupQr;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 
 /*
  * T3-3 (#51): every route × every role. One row per route: what a guest, customer, barista,
@@ -22,7 +20,7 @@ use Illuminate\Support\Str;
  *   '→ /path'                 302 to that path
  * Livewire actions are covered by LivewireActionAccessTest (they don't go through these routes).
  * The guard test at the bottom fails when a registered route is in neither ROUTE_MATRIX nor
- * ROUTE_MATRIX_EXCLUDED, so a new route (e.g. T3-1's /barista/scan) can't be forgotten.
+ * ROUTE_MATRIX_EXCLUDED, so a new route (e.g. T3-7's /barista/ordering-qr) can't be forgotten.
  */
 
 const MATRIX_ROLES = ['guest', 'customer', 'barista', 'manager', 'admin'];
@@ -50,11 +48,8 @@ const ROUTE_MATRIX = [
     // Barista board (role:barista|manager|admin)
     'GET barista' => ['/barista', 'login', 403, 200, 200, 200],
 
-    // T3-1 pickup QR (role:barista|manager|admin; the pickup page also signed:relative)
-    'GET barista/scan' => ['/barista/scan', 'login', 403, 200, 200, 200],
-    'GET barista/pickup/{order}' => ['/barista/pickup/{signed-pickup}', 'login', 403, 200, 200, 200],
-    'GET barista/pickup/{order} (tampered signature)' => ['/barista/pickup/{tampered-pickup}', 'login', 403, 403, 403, 403],
-    'GET barista/pickup/{order} (no signature)' => ['/barista/pickup/{unsigned-pickup}', 'login', 403, 403, 403, 403],
+    // T3-7 ordering QR (role:barista|manager|admin)
+    'GET barista/ordering-qr' => ['/barista/ordering-qr', 'login', 403, 200, 200, 200],
 
     // Settings
     'ANY settings' => ['/settings', 'login', '→ /settings/profile', '→ /settings/profile', '→ /settings/profile', '→ /settings/profile'],
@@ -149,10 +144,6 @@ function matrixPath(string $path, ?User $user): string
         '{group}' => fn () => ModifierGroup::factory()->create()->id,
         '{store-hour}' => fn () => StoreHour::query()->value('id'),
         '{token}' => fn () => 'any-token',
-        // A Ready order's pickup link, as in its QR: "TA-123456?signature=...", tampered, or unsigned.
-        '{signed-pickup}' => fn () => Str::after(PickupQr::path(Order::factory()->ready()->create()), '/barista/pickup/'),
-        '{tampered-pickup}' => fn () => Str::after(PickupQr::path(Order::factory()->ready()->create()), '/barista/pickup/').'0',
-        '{unsigned-pickup}' => fn () => Order::factory()->ready()->create()->order_number,
         // Checkout sends an empty cart back to the cart page: put one drink in it first.
         '{with-cart}' => function () {
             app(Cart::class)->add(app(ModifierValidator::class)->validate(MenuItem::factory()->create(), [], 1));
