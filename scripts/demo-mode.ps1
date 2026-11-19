@@ -44,8 +44,8 @@ $BackupFile = Join-Path $Root '.env.demo-backup'
 $HotFile = Join-Path $Root 'public\hot'
 $HerdConfig = Join-Path $env:USERPROFILE '.config\herd\config'
 $HerdCa = Join-Path $HerdConfig 'valet\CA\LaravelValetCASelfSigned.crt'
-$SnippetTemplate = Join-Path $Root 'deploy\herd\reverb-proxy.conf'
-$SnippetFile = Join-Path $HerdConfig 'server_snippets\tea-alley-reverb.conf'
+$SnippetTemplate = Join-Path $Root 'deploy\herd\demo-mode.conf'
+$SnippetFile = Join-Path $HerdConfig 'server_snippets\tea-alley-demo.conf'
 $Site = 'tea-alley.test'
 $HerdLoopback = 'http://127.0.0.1:60'   # Herd's plain-HTTP listener for the site (loopback only)
 $ManagedKeys = @('APP_ENV', 'APP_DEBUG', 'APP_URL', 'PAYMENT_GATEWAY', 'VITE_REVERB_PORT')
@@ -139,7 +139,7 @@ function Restore-DemoKeys($Document, $Backup) {
 
 # HTTP status of a request to Herd's loopback listener for the site ("000" if no answer).
 function Get-HerdStatus([string] $Path, [switch] $WebSocket) {
-    $arguments = @('-s', '-o', 'NUL', '-w', '%{http_code}', '--max-time', '8', '-H', "Host: $Site")
+    $arguments = @('-s', '-o', 'NUL', '-w', '%{http_code}', '--path-as-is', '--max-time', '8', '-H', "Host: $Site")
     if ($WebSocket) {
         $arguments += @('-H', 'Connection: Upgrade', '-H', 'Upgrade: websocket', '-H', 'Sec-WebSocket-Version: 13', '-H', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==')
     }
@@ -148,12 +148,41 @@ function Get-HerdStatus([string] $Path, [switch] $WebSocket) {
 }
 
 function Get-UrlStatus([string] $Url, [switch] $WebSocket) {
-    $arguments = @('-s', '-o', 'NUL', '-w', '%{http_code}', '--max-time', '15')
+    $arguments = @('-s', '-o', 'NUL', '-w', '%{http_code}', '--path-as-is', '--max-time', '15')
     if ($WebSocket) {
         $arguments += @('-H', 'Connection: Upgrade', '-H', 'Upgrade: websocket', '-H', 'Sec-WebSocket-Version: 13', '-H', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==')
     }
 
     return (& curl.exe @arguments $Url)
+}
+
+# Herd Studio's paths, written the ways a client could send them. Herd 2 serves
+# /herd-studio/loader.js and proxies /__herd/ai/ws (its AI agent's socket) even with Herd Studio
+# off, so demo mode blocks them in nginx (deploy/herd/demo-mode.conf). Encoded, doubled-slash,
+# and upper-case forms reach the same Herd locations (nginx decodes and merges slashes, and on
+# Windows matches locations case-insensitively), so each must be 404 too.
+$StudioPaths = @(
+    '/__herd/ai/ws',
+    '/%5F%5Fherd/ai/ws',
+    '//__herd/ai/ws',
+    '/herd-studio/loader.js',
+    '/herd%2Dstudio/loader.js',
+    '/__HERD/ai/ws',
+    '/Herd-Studio/loader.js'
+)
+
+# Each Studio path as a plain GET and as a WebSocket upgrade, against the tunnel ($Url) or Herd's
+# loopback listener (no $Url). Returns "path (GET|upgrade) -> status" for every one that isn't 404.
+function Get-StudioLeaks([string] $Url = '') {
+    $leaks = @()
+    foreach ($path in $StudioPaths) {
+        foreach ($upgrade in @($false, $true)) {
+            $status = if ($Url) { Get-UrlStatus "$Url$path" -WebSocket:$upgrade } else { Get-HerdStatus $path -WebSocket:$upgrade }
+            if ($status -ne '404') { $leaks += "$path ($(if ($upgrade) { 'upgrade' } else { 'GET' })) -> $status" }
+        }
+    }
+
+    return $leaks
 }
 
 function Test-Listening([int] $Port) {
@@ -172,15 +201,15 @@ function Get-PreflightProblems([switch] $ForOn, [string] $Url = '') {
     if (-not (Test-Path $EnvFile)) { $problems.Add('.env not found.'); return $problems }
     $document = Read-EnvDocument $EnvFile
 
-    # Herd Studio must be off: through the tunnel it would be reachable from the internet.
-    $loader = Get-HerdStatus '/herd-studio/loader.js'
-    $aiSocket = Get-HerdStatus '/__herd/ai/ws' -WebSocket   # a plain GET returns 404 even when it's live
-    if ($loader -eq '000') {
+    # Herd Studio must be off: with it on, Herd injects its scripts into every page. (Its two
+    # paths stay live even when it's off; `on` blocks them and checks every variant is 404.)
+    $page = (& curl.exe -s --max-time 8 -H "Host: $Site" "$HerdLoopback/no-such-page-demo-check") -join "`n"
+    if ($LASTEXITCODE -ne 0 -or $page -eq '') {
         $problems.Add("Herd isn't answering on 127.0.0.1:60. Start Herd.")
-    } elseif ($loader -ne '404' -or $aiSocket -ne '404') {
-        $problems.Add("Herd Studio is on (/herd-studio/loader.js: $loader, /__herd/ai/ws: $aiSocket; both must be 404). Turn Herd Studio off in Herd's settings, then run this again.")
+    } elseif ($page -match 'herd-studio|__HERD_EARLY_ERRORS__') {
+        $problems.Add('Herd Studio is on: Herd injects it into our pages. Turn it off in Herd''s settings (config.json "studio": false), restart Herd, then run this again.')
     } else {
-        Write-Ok 'Herd Studio is off (/herd-studio/loader.js and /__herd/ai/ws are 404)'
+        Write-Ok 'Herd Studio is off (nothing injected into pages)'
     }
 
     $mailer = Get-EnvValue $document 'MAIL_MAILER'
@@ -214,6 +243,37 @@ function Get-PreflightProblems([switch] $ForOn, [string] $Url = '') {
     return $problems
 }
 
+# Everything demo mode promises, checked through the tunnel at $Url. Returns the number of
+# checks that failed (each one printed).
+function Invoke-TunnelVerification([string] $Url) {
+    Write-Step "Checking through the tunnel ($Url)"
+    $reverbKey = Get-EnvValue (Read-EnvDocument $EnvFile) 'REVERB_APP_KEY'
+    $results = [ordered]@{
+        '/up (200)'                    = @((Get-UrlStatus "$Url/up"), '200')
+        'a missing page (404)'         = @((Get-UrlStatus "$Url/no-such-page-demo-check"), '404')
+        'WebSocket /app/<key> (101)'   = @((Get-UrlStatus "$Url/app/$reverbKey`?protocol=7" -WebSocket), '101')
+        'Reverb HTTP API /apps/ (404)' = @((Get-UrlStatus "$Url/apps/check/events"), '404')
+        # Without a forwarded host the request is for tea-alley.test itself, refused in demo mode.
+        # (Over Herd's loopback listener: Windows curl can't check revocation for Herd's local CA.)
+        'tea-alley.test refused (400)' = @((Get-HerdStatus '/up'), '400')
+    }
+    $failed = 0
+    foreach ($name in $results.Keys) {
+        $got, $want = $results[$name]
+        if ($got -eq $want) { Write-Ok $name } else { Write-Note "$name -> got $got"; $failed++ }
+    }
+
+    $leaks = @(Get-StudioLeaks $Url)
+    if ($leaks.Count -eq 0) {
+        Write-Ok "Herd Studio blocked: $($StudioPaths.Count) paths x (GET, WebSocket upgrade) all 404"
+    } else {
+        $leaks | ForEach-Object { Write-Note "Herd Studio not blocked: $_" }
+        $failed += $leaks.Count
+    }
+
+    return $failed
+}
+
 function Invoke-Checked([string] $What, [scriptblock] $Command) {
     Write-Step $What
     & $Command
@@ -225,6 +285,16 @@ function Invoke-Checked([string] $What, [scriptblock] $Command) {
 # ---------------------------------------------------------------------------------------------
 
 function Invoke-Check {
+    # Demo mode on: verify it through the tunnel instead of the preflight.
+    if (Test-Path $BackupFile) {
+        $url = Get-EnvValue (Read-EnvDocument $EnvFile) 'APP_URL'
+        $failed = Invoke-TunnelVerification $url
+        Write-Host ''
+        if ($failed -gt 0) { Stop-Demo "Demo mode is on, but $failed check(s) failed." }
+        Write-Host 'Demo mode is on and every check passed.' -ForegroundColor Green
+        return
+    }
+
     Write-Step 'Preflight'
     $problems = Get-PreflightProblems -ForOn
     if ($problems.Count -gt 0) {
@@ -260,10 +330,19 @@ function Invoke-On {
     Save-EnvDocument $document $EnvFile
     $ManagedKeys | ForEach-Object { Write-Ok "set $_" }
 
-    Write-Step 'Installing the Reverb proxy into Herd (only /app/, TLS verified with Herd''s CA)'
+    Write-Step 'Installing the demo snippet into Herd (blocks Herd Studio; proxies only /app/ to Reverb, TLS verified with Herd''s CA)'
     $snippet = [System.IO.File]::ReadAllText($SnippetTemplate).Replace('{{HERD_CA}}', ($HerdCa -replace '\\', '/'))
     [System.IO.File]::WriteAllText($SnippetFile, $snippet, $Utf8NoBom)
     Invoke-Checked 'Restarting Herd''s nginx' { herd restart nginx | Out-Host }
+    foreach ($i in 1..15) { if (Test-Listening 60) { break }; Start-Sleep -Seconds 2 }
+
+    # Herd Studio must be unreachable before the site goes anywhere near the internet.
+    $leaks = @(Get-StudioLeaks)
+    if ($leaks.Count -gt 0) {
+        $leaks | ForEach-Object { Write-Host "  - Herd Studio not blocked: $_" -ForegroundColor Red }
+        Stop-Demo 'The Herd Studio block didn''t work, so the site isn''t safe to share. Run .\scripts\demo-mode.ps1 off (it undoes everything so far).'
+    }
+    Write-Ok "Herd Studio blocked locally: $($StudioPaths.Count) paths x (GET, WebSocket upgrade) all 404"
 
     if (Test-Path $HotFile) {
         Remove-Item $HotFile
@@ -278,23 +357,7 @@ function Invoke-On {
         Pop-Location
     }
 
-    Write-Step 'Checking through the tunnel'
-    $reverbKey = Get-EnvValue $document 'REVERB_APP_KEY'
-    $results = [ordered]@{
-        "$url/up (200)"                    = @((Get-UrlStatus "$url/up"), '200')
-        "$url/no-such-page (404)"          = @((Get-UrlStatus "$url/no-such-page-demo-check"), '404')
-        'WebSocket /app/<key> (101)'       = @((Get-UrlStatus "$url/app/$reverbKey`?protocol=7" -WebSocket), '101')
-        'Reverb HTTP API /apps/ (404)'     = @((Get-UrlStatus "$url/apps/check/events"), '404')
-        'Herd Studio loader (404)'         = @((Get-UrlStatus "$url/herd-studio/loader.js"), '404')
-        # Without a forwarded host the request is for tea-alley.test itself, refused in demo mode.
-        # (Over Herd's loopback listener: Windows curl can't check revocation for Herd's local CA.)
-        'tea-alley.test refused (400)'     = @((Get-HerdStatus '/up'), '400')
-    }
-    $failed = 0
-    foreach ($name in $results.Keys) {
-        $got, $want = $results[$name]
-        if ($got -eq $want) { Write-Ok "$name" } else { Write-Note "$name -> got $got"; $failed++ }
-    }
+    $failed = Invoke-TunnelVerification $url
 
     Write-Host ''
     if ($failed -gt 0) {
@@ -318,7 +381,7 @@ function Invoke-Off {
     Save-EnvDocument $document $EnvFile
     $ManagedKeys | ForEach-Object { Write-Ok "restored $_" }
 
-    Write-Step 'Removing the Reverb proxy from Herd'
+    Write-Step 'Removing the demo snippet from Herd'
     if (Test-Path $SnippetFile) { Remove-Item $SnippetFile }
     Invoke-Checked 'Restarting Herd''s nginx' { herd restart nginx | Out-Host }
 

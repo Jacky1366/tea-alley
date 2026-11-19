@@ -31,7 +31,7 @@ Do the steps in order.
 1. **DBngin**: MySQL running. **Herd** running.
 2. **Stop the dev stack** (`composer run dev`, `php artisan dev`, `npm run dev`). The Vite dev server must not run, because phones can't reach `:5173`.
 3. **Reverb**, in its own terminal: `php artisan reverb:start`
-4. **Herd Studio off** in Herd's settings. Through the tunnel it would be reachable from the internet. The script refuses to continue until both `/herd-studio/loader.js` and `/__herd/ai/ws` return 404.
+4. **Herd Studio off** in Herd's settings, then **restart Herd**. Check that `~\.config\herd\config\config.json` now says `"studio": false`. Herd 2 still serves `/herd-studio/loader.js` and proxies `/__herd/ai/ws` (its AI agent's socket) with Studio off, so the demo snippet blocks both in nginx. The script refuses to go public unless every encoded, doubled-slash and upper-case form of both paths returns 404, as a plain GET and as a WebSocket upgrade, locally and through the tunnel.
 5. **The tunnel**, in its own terminal:
    ```powershell
    cloudflared tunnel --url http://127.0.0.1:60 --http-host-header tea-alley.test
@@ -47,8 +47,8 @@ Do the steps in order.
    .\scripts\demo-mode.ps1 on https://<tunnel>
    ```
    - **Preflight:** Herd Studio off, `MAIL_MAILER` is `smtp`, Reverb on 8080, `stripe listen` forwarding to this tunnel, no Vite dev server, the tunnel running. It stops with a clear message, and changes nothing, if any of these fail.
-   - **Then:** backs up `.env` to `.env.demo-backup` (git-ignored), sets the demo keys, installs the `/app/` proxy into Herd (`server_snippets/tea-alley-reverb.conf`), restarts nginx, runs `npm run build` (Echo on port 443) and `php artisan optimize`.
-   - **Last, it checks through the tunnel:** `/up` is 200; a missing page is 404; the WebSocket gets 101; `/apps/` is 404 (Reverb's HTTP API stays private); Herd Studio is 404; `tea-alley.test` is 400.
+   - **Then:** backs up `.env` to `.env.demo-backup` (git-ignored), sets the demo keys, installs the demo snippet into Herd (`server_snippets/tea-alley-demo.conf`: blocks Herd Studio, proxies only `/app/` to Reverb), restarts nginx, stops if Herd Studio still answers, runs `npm run build` (Echo on port 443) and `php artisan optimize`.
+   - **Last, it checks through the tunnel:** `/up` is 200; a missing page is 404; the WebSocket gets 101; `/apps/` is 404 (Reverb's HTTP API stays private); `tea-alley.test` is 400; every Herd Studio variant is 404 (GET and upgrade). Run `.\scripts\demo-mode.ps1 check` while demo mode is on to repeat these checks any time.
 8. **Smoke test on a phone on 4G** (Wi-Fi off): the menu has its styles, you can log in, and the order page shows **Live**.
 
 **If the tunnel restarts**, the URL changes. Run `off`, then steps 5–7 again with the new URL.
@@ -84,6 +84,7 @@ Do the steps in order.
 |---|---|
 | **400 Bad Request** | You opened `https://tea-alley.test` (refused in demo mode), or the tunnel restarted and `APP_URL` is the old URL: `off`, then `on` with the new one. |
 | Pages without styles; requests to `:5173` | `public/hot` exists (the Vite dev server ran). Stop it; `on` removes a stale `public/hot` and builds. |
-| **Polling** instead of **Live** | Reverb isn't running, or the `/app/` proxy isn't installed (Herd's `server_snippets/tea-alley-reverb.conf`). Echo uses port 443 only from a build made in demo mode. |
+| **Polling** instead of **Live** | Reverb isn't running (a Herd restart can stop it), or the demo snippet isn't installed (Herd's `server_snippets/tea-alley-demo.conf`). Echo uses port 443 only from a build made in demo mode. |
+| `check` says Herd Studio isn't blocked | The demo snippet is missing or Herd's nginx didn't reload: `herd restart nginx`, then `check` again. If it still fails, `off`. Don't share the URL meanwhile. |
 | Paid on Stripe but the order stays "Payment pending" | `stripe listen` isn't forwarding to `https://<tunnel>/stripe/webhook`, or its secret doesn't match `STRIPE_WEBHOOK_SECRET`. |
 | 429 from Cloudflare | More than 200 requests in flight on the quick tunnel. |

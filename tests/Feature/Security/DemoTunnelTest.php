@@ -92,9 +92,31 @@ test('one host in demo mode: tea-alley.test itself is rejected while APP_URL is 
     $this->get('https://tea-alley.test/')->assertBadRequest();
 });
 
-test('the Reverb proxy snippet forwards only /app/, guards the host, and verifies TLS', function () {
-    $snippet = file_get_contents(base_path('deploy/herd/reverb-proxy.conf'));
-    $directives = preg_replace('/^\s*#.*$/m', '', $snippet);
+test('the demo snippet blocks Herd Studio on decoded, slash-merged, case-insensitive paths, for this host only', function () {
+    $directives = preg_replace('/^\s*#.*$/m', '', file_get_contents(base_path('deploy/herd/demo-mode.conf')));
+
+    // Matched on $uri (decoded, slashes merged), not $request_uri (raw: /%5F%5Fherd would slip by),
+    // case-insensitively (nginx on Windows matches locations that way), before any location.
+    expect($directives)->toContain('if ($uri ~* "^/+(__herd|herd-studio)(/|$)")')
+        ->and($directives)->not->toContain('$request_uri')
+        ->and($directives)->toContain('if ($host = "tea-alley.test")')
+        ->and($directives)->toContain('if ($tea_alley_demo_block = "host+path")')
+        // With a body: a bare `return 404` would go through Herd's error_page and become a 302.
+        ->and(preg_match_all('/return 404 "Not Found";/', $directives))->toBe(2)
+        ->and($directives)->not->toMatch('/return 404;/');
+
+    // The same regex nginx will run, against the paths nginx hands it after decoding and merging.
+    $pattern = '#^/+(__herd|herd-studio)(/|$)#i';
+    foreach (['/__herd/ai/ws', '//__herd/ai/ws', '/__HERD/ai/ws', '/herd-studio/loader.js', '/Herd-Studio/loader.js', '/__herd', '/herd-studio'] as $blocked) {
+        expect(preg_match($pattern, $blocked))->toBe(1, $blocked);
+    }
+    foreach (['/up', '/herdsman', '/__herded/x', '/app/key', '/menu/herd-studio'] as $allowed) {
+        expect(preg_match($pattern, $allowed))->toBe(0, $allowed);
+    }
+});
+
+test('the demo snippet forwards only /app/ to Reverb, guards the host, and verifies TLS', function () {
+    $directives = preg_replace('/^\s*#.*$/m', '', file_get_contents(base_path('deploy/herd/demo-mode.conf')));
 
     expect($directives)->toContain('location ^~ /app/ {')
         ->and(preg_match_all('/\blocation\b/', $directives))->toBe(1)
