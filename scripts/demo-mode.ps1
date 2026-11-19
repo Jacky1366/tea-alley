@@ -228,6 +228,22 @@ function Get-PreflightProblems([switch] $ForOn, [string] $Url = '') {
         Write-Ok 'stripe listen is running'
     }
 
+    # The listener signs every forwarded event with its own secret; if .env has another one, every
+    # webhook is a silent "400 Invalid signature" and orders stay "Payment pending". Compared in
+    # memory: only match / mismatch is printed.
+    if ($stripe) {
+        $listenerSecret = ((& stripe listen --print-secret 2>$null) | Out-String).Trim()
+        $envSecret = Get-EnvValue $document 'STRIPE_WEBHOOK_SECRET'
+        if ($listenerSecret -eq '') {
+            $problems.Add('Couldn''t read the stripe listen signing secret (stripe listen --print-secret). Is the Stripe CLI logged in?')
+        } elseif ($listenerSecret -cne $envSecret) {
+            $problems.Add('STRIPE_WEBHOOK_SECRET in .env doesn''t match the running stripe listen (mismatch; values not shown). Set it to the output of stripe listen --print-secret.')
+        } else {
+            Write-Ok 'stripe listen signing secret matches .env (match)'
+        }
+        Remove-Variable listenerSecret, envSecret
+    }
+
     if (Test-Listening 5173) { $problems.Add('The Vite dev server is running (port 5173). Stop `npm run dev` / `composer run dev`: phones can''t reach it, and demo mode serves built assets.') } else { Write-Ok 'no Vite dev server' }
 
     if (-not (Test-Path $HerdCa)) { $problems.Add("Herd's CA certificate wasn't found at $HerdCa.") }
@@ -236,8 +252,14 @@ function Get-PreflightProblems([switch] $ForOn, [string] $Url = '') {
     if ($ForOn) {
         if (Test-Path $BackupFile) { $problems.Add('.env.demo-backup already exists: demo mode looks on already. Run `off` first (or compare and delete the backup yourself).') }
 
-        $tunnel = Get-ProcessCommandLines 'cloudflared.exe' | Where-Object { $_ -match '127\.0\.0\.1:60' -and $_ -match '--http-host-header\s+tea-alley\.test' }
-        if (-not $tunnel) { $problems.Add('The quick tunnel isn''t running. Start it: cloudflared tunnel --url http://127.0.0.1:60 --http-host-header tea-alley.test') } else { Write-Ok 'cloudflared quick tunnel to Herd is running' }
+        # Herd's HTTPS listener, not its plain-HTTP one on :60: Herd 2's :60 block can't serve
+        # static files on Windows (every /build/ asset is a 500). TLS to Herd is verified against
+        # Herd's own CA.
+        $tunnel = Get-ProcessCommandLines 'cloudflared.exe' | Where-Object {
+            $_ -match '--url\s+https://127\.0\.0\.1:443' -and $_ -match '--origin-ca-pool' -and
+            $_ -match '--origin-server-name\s+tea-alley\.test' -and $_ -match '--http-host-header\s+tea-alley\.test'
+        }
+        if (-not $tunnel) { $problems.Add("The quick tunnel isn't running (or not to Herd's HTTPS listener). Start it as in docs/demo-runbook.md, step 5: cloudflared tunnel --url https://127.0.0.1:443 --origin-ca-pool `"$HerdCa`" --origin-server-name tea-alley.test --http-host-header tea-alley.test") } else { Write-Ok 'cloudflared quick tunnel to Herd (HTTPS, CA verified) is running' }
     }
 
     return $problems
@@ -261,6 +283,14 @@ function Invoke-TunnelVerification([string] $Url) {
     foreach ($name in $results.Keys) {
         $got, $want = $results[$name]
         if ($got -eq $want) { Write-Ok $name } else { Write-Note "$name -> got $got"; $failed++ }
+    }
+
+    # The built assets the pages load (from the manifest): 200 and the right Content-Type.
+    $manifest = Get-Content (Join-Path $Root 'public\build\manifest.json') -Raw | ConvertFrom-Json
+    foreach ($entry in @(@('resources/css/app.css', 'text/css'), @('resources/js/app.js', 'javascript'))) {
+        $file = $manifest.($entry[0]).file
+        $answer = & curl.exe -s -o NUL -w '%{http_code} %{content_type}' --max-time 15 "$Url/build/$file"
+        if ($answer -match '^200 ' -and $answer -match [regex]::Escape($entry[1])) { Write-Ok "asset /build/$file ($answer)" } else { Write-Note "asset /build/$file -> got $answer"; $failed++ }
     }
 
     $leaks = @(Get-StudioLeaks $Url)
