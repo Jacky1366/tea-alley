@@ -8,7 +8,6 @@ use App\Models\Order;
 use App\Models\User;
 use App\Services\Cart;
 use App\Services\ModifierValidator;
-use App\Support\PickupQr;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Testing\TestResponse;
 
@@ -158,35 +157,6 @@ describe('checkout (auth + verified)', function () {
         livewireAction(null, $snapshot, 'placeOrder')->assertUnauthorized();
 
         expect(Order::count())->toBe(0);
-    });
-});
-
-describe('pickup confirmation (T3-1: role re-applied on the action, OrderPolicy::advance, Ready)', function () {
-    test('a customer or guest replaying a barista\'s Confirm pickup is refused, and the order stays Ready', function (?string $role, int $status) {
-        $order = Order::factory()->ready()->create();
-        $snapshot = snapshotFor(userWithRole('barista'), PickupQr::path($order), 'pages::barista.pickup');
-        $user = match ($role) {
-            null => null,
-            'owner' => $order->user->assignRole('customer'),
-            default => userWithRole($role),
-        };
-
-        livewireAction($user, $snapshot, 'confirm')->assertStatus($status);
-
-        expect($order->fresh()->status)->toBe(OrderStatus::Ready);
-    })->with([
-        'customer' => ['customer', 403],
-        'the order\'s own customer' => ['owner', 403],
-        'guest' => [null, 401],
-    ]);
-
-    test('another barista replaying it works: the action needs the role, not the signature', function () {
-        $order = Order::factory()->ready()->create();
-        $snapshot = snapshotFor(userWithRole('barista'), PickupQr::path($order), 'pages::barista.pickup');
-
-        livewireAction(userWithRole('barista'), $snapshot, 'confirm')->assertOk();
-
-        expect($order->fresh()->status)->toBe(OrderStatus::PickedUp);
     });
 });
 

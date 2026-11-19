@@ -1,6 +1,6 @@
 # Demo runbook
 
-How to put Tea Alley on the internet for phones (classmates on 4G, the two-phone QR test, PWA), and how to go back to local development. Decided in #57; the reasons are in `docs/decisions.md`.
+How to put Tea Alley on the internet for phones (classmates on 4G, PWA), and how to go back to local development. Decided in #57; the reasons are in `docs/decisions.md`.
 
 ## How it works
 
@@ -66,10 +66,14 @@ Do the steps in order.
 3. Herd Studio back on if you want it. `composer run dev` again.
 4. Check: `https://tea-alley.test` works, and `php artisan test` is green.
 
+## Before demo day
+
+- [ ] **Store hours cover the presentation (Fri Dec 4, 4:00–6:50 PM).** In `tea_alley` (Admin → Store hours), Friday must be open, with `opens_at` at or before 4:00 PM and `closes_at` at or after **7:05 PM**: ordering stops `ordering_cutoff_minutes` (15) before closing. Otherwise the menu says ordering is closed and nobody can order. (On Nov 18 it was 11:00–22:00, which is fine.)
+
 ## Demo day
 
 1. **In the afternoon, still local:** `php artisan db:seed --class=DemoOrdersSeeder`, so the 14 days end today and "today" already has sales.
-2. Demo mode **ON** (above). Put the tunnel URL on the slide as a QR code.
+2. Demo mode **ON** (above). On the barista board, open **Show ordering QR**, press **Full screen**, and project it: classmates scan it to open the menu. It always shows the current `APP_URL`, so a new tunnel URL needs nothing but a reload of that page.
 3. **Never run `DemoOrdersSeeder` after the demo starts.** It deletes every order of the 20 spare customer accounts, including ones classmates place with them.
 4. Spare accounts for anyone whose verification email doesn't arrive: `customer01@tea-alley.test` … `customer20@tea-alley.test`, password `password`.
 

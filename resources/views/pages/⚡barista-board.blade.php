@@ -180,8 +180,8 @@ new #[Layout('layouts::app')] #[Title('Barista board')] class extends Component 
     <div class="flex flex-wrap items-center justify-between gap-2">
         <flux:heading size="xl" level="1">{{ __('Barista board') }}</flux:heading>
         <div class="flex items-center gap-3">
-            {{-- T3-1: scan a customer's pickup QR. A full page load, so the camera starts fresh. --}}
-            <flux:button :href="route('barista.scan')" icon="qr-code" size="sm" data-test="scan-qr-button">{{ __('Scan QR') }}</flux:button>
+            {{-- T3-7: the QR customers scan to order (to show on the counter or a projector). --}}
+            <flux:button :href="route('barista.ordering-qr')" icon="qr-code" size="sm" wire:navigate data-test="ordering-qr-button">{{ __('Show ordering QR') }}</flux:button>
             <x-realtime-status channel="private-barista" />
         </div>
     </div>
