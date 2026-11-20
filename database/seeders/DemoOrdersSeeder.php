@@ -74,6 +74,10 @@ class DemoOrdersSeeder extends Seeder
         'Strawberry Fresh Milk' => 4, 'Black Tea Fresh Milk' => 4, 'Winter Melon Lemonade' => 3,
         'Lemon Sparkling Green Tea' => 3, 'Peach Oolong Sparkling Tea' => 3, 'Lychee Sparkling Tea' => 2,
         'Jasmine Green Tea' => 3, 'Roasted Oolong Tea' => 2, 'Assam Black Tea' => 2,
+        'Jasmine Milk Green Tea' => 7, 'Taro Purée Fresh Milk' => 6, 'Mixed Fruit Tea' => 5,
+        'Hojicha Milk Tea' => 4, 'Kumquat Lemon Green Tea' => 4, 'Black Sesame Milk Tea' => 4,
+        'Yuzu Green Tea' => 3, 'Tieguanyin Fresh Milk' => 3, 'Kyoho Grape Sparkling Tea' => 3,
+        'Green Plum Sparkling Tea' => 2, 'Four Seasons Oolong Tea' => 2, 'Jin Xuan Oolong Tea' => 2,
     ];
 
     /** How often each option is chosen within its group (MenuSeeder's names). Others weigh 1. */
