@@ -77,7 +77,7 @@ test('the database seeder builds the menu', function () {
     $this->seed(DatabaseSeeder::class);
 
     expect(Category::count())->toBe(6)
-        ->and(MenuItem::count())->toBeGreaterThanOrEqual(18)
+        ->and(MenuItem::count())->toBe(30)
         ->and(ModifierGroup::count())->toBe(5);
 
     $sparkling = Category::where('slug', 'sparkling')->firstOrFail();

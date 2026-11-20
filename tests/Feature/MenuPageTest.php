@@ -157,7 +157,7 @@ test('an unknown sort value falls back to popular', function () {
 });
 
 test('the full seeded menu renders without lazy loading', function () {
-    // Strict mode is on outside production, so any lazy load across these 18 drinks would throw.
+    // Strict mode is on outside production, so any lazy load across these 30 drinks would throw.
     $this->seed(MenuSeeder::class);
 
     $this->get('/')

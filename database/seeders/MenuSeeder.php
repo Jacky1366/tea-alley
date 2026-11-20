@@ -6,54 +6,90 @@ use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\ModifierGroup;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Seed the drink menu: 6 categories of 5 drinks, and the modifier groups and options.
+ *
+ * Safe to run again on a database that already has the menu (#61):
+ *
+ *     php artisan db:seed --class=MenuSeeder
+ *
+ * - Every row is found or created (firstOrCreate), never updated: categories by `slug`,
+ *   modifier groups by `name_en`, options by (group, `name_en`), drinks by (category,
+ *   `name_en`). Prices, names, availability, sort order and photos edited in /admin are
+ *   left as they are.
+ * - Modifier groups are attached only to drinks this run created, so a drink whose groups
+ *   were changed in /admin keeps them.
+ * - Something that no longer matches its key comes back as a new row: a seeded drink,
+ *   option or group that was deleted, a drink that was renamed (by `name_en`) or moved to
+ *   another category, a group that was renamed, a category whose slug changed.
+ */
 class MenuSeeder extends Seeder
 {
-    /**
-     * Seed the drink menu: categories, drinks, and modifier groups/options.
-     */
     public function run(): void
     {
-        $groups = $this->seedModifierGroups();
+        DB::transaction(function (): void {
+            $groups = $this->seedModifierGroups();
+            $this->seedDrinks($groups);
+        });
+    }
+
+    /**
+     * @param  array<string, ModifierGroup>  $groups
+     */
+    private function seedDrinks(array $groups): void
+    {
 
         $categories = [
             ['slug' => 'milk-tea', 'name_en' => 'Milk Tea', 'name_zh' => '奶茶', 'drinks' => [
                 ['Classic Milk Tea', '經典奶茶', 595, 'milk' => true],
                 ['Brown Sugar Pearl Milk Tea', '黑糖珍珠奶茶', 695, 'milk' => true],
                 ['Taro Milk Tea', '芋頭奶茶', 645, 'milk' => true],
+                ['Jasmine Milk Green Tea', '茉莉奶綠', 595, 'milk' => true],
+                ['Hojicha Milk Tea', '焙茶奶茶', 645, 'milk' => true],
             ]],
             ['slug' => 'fruit-tea', 'name_en' => 'Fruit Tea', 'name_zh' => '果茶', 'drinks' => [
                 ['Passion Fruit Green Tea', '百香果綠茶', 595],
                 ['Mango Green Tea', '芒果綠茶', 625],
                 ['Grapefruit Jasmine Tea', '葡萄柚茉莉綠茶', 650],
+                ['Kumquat Lemon Green Tea', '金桔檸檬綠茶', 575],
+                ['Mixed Fruit Tea', '綜合水果茶', 695],
             ]],
             ['slug' => 'fresh-milk', 'name_en' => 'Fresh Milk', 'name_zh' => '鮮奶', 'drinks' => [
                 ['Brown Sugar Fresh Milk', '黑糖鮮奶', 675, 'milk' => true],
                 ['Matcha Fresh Milk', '抹茶鮮奶', 695, 'milk' => true],
                 ['Black Tea Fresh Milk', '紅茶鮮奶', 625, 'milk' => true],
+                ['Taro Purée Fresh Milk', '芋泥鮮奶', 725, 'milk' => true],
+                ['Tieguanyin Fresh Milk', '鐵觀音鮮奶', 650, 'milk' => true],
             ]],
             ['slug' => 'sparkling', 'name_en' => 'Sparkling', 'name_zh' => '氣泡茶', 'drinks' => [
                 ['Lemon Sparkling Green Tea', '檸檬氣泡綠茶', 625],
                 ['Peach Oolong Sparkling Tea', '蜜桃烏龍氣泡茶', 650],
                 ['Lychee Sparkling Tea', '荔枝氣泡茶', 650],
+                ['Kyoho Grape Sparkling Tea', '巨峰葡萄氣泡茶', 675],
+                ['Green Plum Sparkling Tea', '青梅氣泡茶', 625],
             ]],
             ['slug' => 'pure-tea', 'name_en' => 'Pure Tea', 'name_zh' => '純茶', 'drinks' => [
                 ['Jasmine Green Tea', '茉莉綠茶', 450],
                 ['Roasted Oolong Tea', '炭焙烏龍茶', 475],
                 ['Assam Black Tea', '阿薩姆紅茶', 450],
+                ['Four Seasons Oolong Tea', '四季春青茶', 450],
+                ['Jin Xuan Oolong Tea', '金萱烏龍茶', 475],
             ]],
             ['slug' => 'seasonal', 'name_en' => 'Seasonal', 'name_zh' => '季節限定', 'drinks' => [
                 ['Strawberry Fresh Milk', '草莓鮮奶', 750, 'milk' => true],
                 ['Osmanthus Oolong Milk Tea', '桂花烏龍奶茶', 695, 'milk' => true],
                 ['Winter Melon Lemonade', '冬瓜檸檬', 575],
+                ['Black Sesame Milk Tea', '黑芝麻奶茶', 725, 'milk' => true],
+                ['Yuzu Green Tea', '柚子綠茶', 650],
             ]],
         ];
 
         foreach ($categories as $categoryIndex => $data) {
-            $category = Category::create([
+            $category = Category::firstOrCreate(['slug' => $data['slug']], [
                 'name_en' => $data['name_en'],
                 'name_zh' => $data['name_zh'],
-                'slug' => $data['slug'],
                 'sort_order' => $categoryIndex + 1,
                 'is_active' => true,
             ]);
@@ -61,8 +97,7 @@ class MenuSeeder extends Seeder
             $isSparkling = $data['slug'] === 'sparkling';
 
             foreach ($data['drinks'] as $drinkIndex => $drink) {
-                $item = $category->menuItems()->create([
-                    'name_en' => $drink[0],
+                $item = $category->menuItems()->firstOrCreate(['name_en' => $drink[0]], [
                     'name_zh' => $drink[1],
                     'price_cents' => $drink[2],
                     'tax_category' => $isSparkling ? MenuItem::TAX_CARBONATED : MenuItem::TAX_STANDARD,
@@ -70,6 +105,10 @@ class MenuSeeder extends Seeder
                     'is_available' => true,
                     'sort_order' => $drinkIndex + 1,
                 ]);
+
+                if (! $item->wasRecentlyCreated) {
+                    continue;
+                }
 
                 // Everyone gets Size / Sugar / Ice; toppings for everything except sparkling;
                 // milk substitutes only for milk-based drinks.
@@ -132,8 +171,7 @@ class MenuSeeder extends Seeder
         $groupIndex = 0;
 
         foreach ($definitions as $key => [[$nameEn, $nameZh, $required, $min, $max], $options]) {
-            $group = ModifierGroup::create([
-                'name_en' => $nameEn,
+            $group = ModifierGroup::firstOrCreate(['name_en' => $nameEn], [
                 'name_zh' => $nameZh,
                 'is_required' => $required,
                 'min_select' => $min,
@@ -142,8 +180,7 @@ class MenuSeeder extends Seeder
             ]);
 
             foreach ($options as $optionIndex => $option) {
-                $group->options()->create([
-                    'name_en' => $option[0],
+                $group->options()->firstOrCreate(['name_en' => $option[0]], [
                     'name_zh' => $option[1],
                     'price_delta_cents' => $option[2],
                     'is_default' => $option[3] ?? false,
