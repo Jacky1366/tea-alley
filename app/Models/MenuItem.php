@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedDescription;
 use App\Models\Concerns\HasLocalizedName;
 use App\Models\Contracts\Auditable;
 use App\Observers\AuditObserver;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class MenuItem extends Model implements Auditable
 {
     /** @use HasFactory<MenuItemFactory> */
-    use HasFactory, HasLocalizedName;
+    use HasFactory, HasLocalizedDescription, HasLocalizedName;
 
     public const TAX_STANDARD = 'standard';
 
@@ -28,7 +29,8 @@ class MenuItem extends Model implements Auditable
         'category_id',
         'name_en',
         'name_zh',
-        'description',
+        'description_en',
+        'description_zh',
         'price_cents',
         'photo_path',
         'tax_category',

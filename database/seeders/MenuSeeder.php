@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  * - Something that no longer matches its key comes back as a new row: a seeded drink,
  *   option or group that was deleted, a drink that was renamed (by `name_en`) or moved to
  *   another category, a group that was renamed, a category whose slug changed.
+ * - Descriptions (#64): new drinks are created with them; then MenuDescriptionsSeeder fills
+ *   only descriptions that are still empty. It never overwrites text written in /admin.
  */
 class MenuSeeder extends Seeder
 {
@@ -33,6 +35,8 @@ class MenuSeeder extends Seeder
             $groups = $this->seedModifierGroups();
             $this->seedDrinks($groups);
         });
+
+        $this->call(MenuDescriptionsSeeder::class);
     }
 
     /**
@@ -97,8 +101,12 @@ class MenuSeeder extends Seeder
             $isSparkling = $data['slug'] === 'sparkling';
 
             foreach ($data['drinks'] as $drinkIndex => $drink) {
+                [$descriptionEn, $descriptionZh] = MenuDescriptionsSeeder::for($data['slug'], $drink[0]);
+
                 $item = $category->menuItems()->firstOrCreate(['name_en' => $drink[0]], [
                     'name_zh' => $drink[1],
+                    'description_en' => $descriptionEn,
+                    'description_zh' => $descriptionZh,
                     'price_cents' => $drink[2],
                     'tax_category' => $isSparkling ? MenuItem::TAX_CARBONATED : MenuItem::TAX_STANDARD,
                     'prep_minutes' => 3,
