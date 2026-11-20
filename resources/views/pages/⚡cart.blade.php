@@ -81,7 +81,7 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Your cart') }}</flux:heading>
+        <flux:heading size="xl" level="1" class="text-3xl!">{{ __('Your cart') }}</flux:heading>
     </div>
 
     <x-ordering-banner />
@@ -101,16 +101,18 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
     @endforeach
 
     @if ($this->contents->isEmpty())
-        <flux:callout icon="shopping-bag" data-test="cart-empty">
-            <flux:callout.heading>{{ __('Your cart is empty') }}</flux:callout.heading>
-            <flux:callout.text>
-                <flux:link :href="route('home')" wire:navigate>{{ __('Browse the menu') }}</flux:link>
-            </flux:callout.text>
-        </flux:callout>
+        <x-empty-state icon="shopping-bag" data-test="cart-empty">
+            <x-slot:heading>{{ __('Your cart is empty') }}</x-slot:heading>
+            {{ __('Pick a drink from the menu and make it your way.') }}
+            <x-slot:action>
+                <flux:button :href="route('home')" wire:navigate variant="primary" size="sm">{{ __('Browse the menu') }}</flux:button>
+            </x-slot:action>
+        </x-empty-state>
     @else
         @if ($this->contents->valid !== [])
-            <ul class="flex flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700" data-test="cart-lines">
+            <ul class="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card shadow-warm" data-test="cart-lines">
                 @foreach ($this->breakdown->lines as $line)
+                    @php($key = \Illuminate\Support\Js::from($line->key))
                     <li class="flex flex-col gap-3 p-4" wire:key="line-{{ $line->key }}" data-test="cart-line">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
@@ -120,30 +122,45 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
                                 @endif
                                 <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($line->unit_price_cents)]) }}</flux:text>
                             </div>
-                            <flux:heading size="lg" class="shrink-0" data-test="line-total">{{ $this->money($line->line_total_cents) }}</flux:heading>
+                            <p class="shrink-0 text-lg font-semibold text-tea" data-test="line-total">{{ $this->money($line->line_total_cents) }}</p>
                         </div>
 
+                        {{-- 44px tap targets. Each button is disabled while its own request runs. --}}
                         <div class="flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-1" role="group" aria-label="{{ __('Quantity') }}">
+                            <div class="flex items-center gap-1 rounded-full border border-line bg-paper p-0.5" role="group" aria-label="{{ __('Quantity') }}">
                                 <flux:button
-                                    size="sm"
+                                    variant="ghost"
                                     icon="minus"
-                                    :wire:click="'setQuantity('.\Illuminate\Support\Js::from($line->key).', '.($line->quantity - 1).')'"
+                                    class="size-11! rounded-full!"
+                                    :wire:click="'setQuantity('.$key.', '.($line->quantity - 1).')'"
+                                    :wire:target="'setQuantity('.$key.', '.($line->quantity - 1).')'"
+                                    wire:loading.attr="disabled"
                                     :disabled="$line->quantity <= 1"
                                     aria-label="{{ __('Decrease quantity') }}"
                                     data-test="decrease"
                                 />
-                                <span class="w-8 text-center font-medium" data-test="quantity">{{ $line->quantity }}</span>
+                                <span class="w-8 text-center font-semibold" data-test="quantity">{{ $line->quantity }}</span>
                                 <flux:button
-                                    size="sm"
+                                    variant="ghost"
                                     icon="plus"
-                                    :wire:click="'setQuantity('.\Illuminate\Support\Js::from($line->key).', '.($line->quantity + 1).')'"
+                                    class="size-11! rounded-full!"
+                                    :wire:click="'setQuantity('.$key.', '.($line->quantity + 1).')'"
+                                    :wire:target="'setQuantity('.$key.', '.($line->quantity + 1).')'"
+                                    wire:loading.attr="disabled"
                                     :disabled="$line->quantity >= Cart::MAX_PER_LINE"
                                     aria-label="{{ __('Increase quantity') }}"
                                     data-test="increase"
                                 />
                             </div>
-                            <flux:button size="sm" variant="ghost" icon="trash" :wire:click="'remove('.\Illuminate\Support\Js::from($line->key).')'" data-test="remove">
+                            <flux:button
+                                variant="ghost"
+                                icon="trash"
+                                class="h-11!"
+                                :wire:click="'remove('.$key.')'"
+                                :wire:target="'remove('.$key.')'"
+                                wire:loading.attr="disabled"
+                                data-test="remove"
+                            >
                                 {{ __('Remove') }}
                             </flux:button>
                         </div>
@@ -154,17 +171,26 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
 
         @if ($this->contents->hasInvalid())
             <div class="flex flex-col gap-2" data-test="invalid-lines">
-                <flux:heading>{{ __("Can't be ordered") }}</flux:heading>
-                <ul class="flex flex-col divide-y divide-red-200 rounded-xl border border-red-200 dark:divide-red-900 dark:border-red-900">
+                <flux:heading level="2">{{ __("Can't be ordered") }}</flux:heading>
+                <ul class="flex flex-col divide-y divide-red-200 overflow-hidden rounded-2xl border border-red-200 bg-card">
                     @foreach ($this->contents->invalid as $line)
+                        @php($key = \Illuminate\Support\Js::from($line->key))
                         <li class="flex items-start justify-between gap-3 p-4" wire:key="invalid-{{ $line->key }}" data-test="invalid-line">
                             <div class="min-w-0">
                                 <flux:heading>{{ __(':drink × :quantity', ['drink' => $line->name ?? __('Unavailable drink'), 'quantity' => $line->quantity]) }}</flux:heading>
                                 @foreach ($line->reasons as $reason)
-                                    <flux:text size="sm" class="text-red-600! dark:text-red-400!" data-test="invalid-reason">{{ $reason }}</flux:text>
+                                    <flux:text size="sm" class="text-red-600!" data-test="invalid-reason">{{ $reason }}</flux:text>
                                 @endforeach
                             </div>
-                            <flux:button size="sm" variant="ghost" icon="trash" :wire:click="'remove('.\Illuminate\Support\Js::from($line->key).')'" data-test="remove-invalid">
+                            <flux:button
+                                variant="ghost"
+                                icon="trash"
+                                class="h-11!"
+                                :wire:click="'remove('.$key.')'"
+                                :wire:target="'remove('.$key.')'"
+                                wire:loading.attr="disabled"
+                                data-test="remove-invalid"
+                            >
                                 {{ __('Remove') }}
                             </flux:button>
                         </li>
@@ -174,22 +200,24 @@ new #[Layout('layouts::public')] #[Title('Cart')] class extends Component {
             </div>
         @endif
 
-        <div class="flex flex-col gap-1">
-            <div class="flex items-baseline justify-between">
-                <flux:heading size="lg">{{ __('Subtotal') }}</flux:heading>
-                <flux:heading size="lg" data-test="subtotal">{{ $this->money($this->breakdown->subtotal_cents) }}</flux:heading>
+        <div class="flex flex-col gap-4 rounded-2xl border border-line bg-card p-4 shadow-warm">
+            <div class="flex flex-col gap-1">
+                <div class="flex items-baseline justify-between">
+                    <flux:heading size="lg">{{ __('Subtotal') }}</flux:heading>
+                    <flux:heading size="lg" data-test="subtotal">{{ $this->money($this->breakdown->subtotal_cents) }}</flux:heading>
+                </div>
+                <flux:text size="sm">{{ __('Taxes calculated at checkout') }}</flux:text>
             </div>
-            <flux:text size="sm">{{ __('Taxes calculated at checkout') }}</flux:text>
-        </div>
 
-        @if ($this->canCheckout)
-            <flux:button :href="route('checkout')" variant="primary" class="w-full" data-test="checkout-button">
-                {{ __('Checkout') }}
-            </flux:button>
-        @else
-            <flux:button variant="primary" class="w-full" disabled data-test="checkout-button">
-                {{ __('Checkout') }}
-            </flux:button>
-        @endif
+            @if ($this->canCheckout)
+                <flux:button :href="route('checkout')" variant="primary" class="h-12! w-full text-base!" data-test="checkout-button">
+                    {{ __('Checkout') }}
+                </flux:button>
+            @else
+                <flux:button variant="primary" class="h-12! w-full text-base!" disabled data-test="checkout-button">
+                    {{ __('Checkout') }}
+                </flux:button>
+            @endif
+        </div>
     @endif
 </div>

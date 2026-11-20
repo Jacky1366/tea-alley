@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        @include('partials.head')
+        @include('partials.head', ['customerTheme' => true])
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:header container class="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    {{-- theme-customer: warm, light-only customer theme (#62, resources/css/app.css). --}}
+    <body class="theme-customer min-h-screen bg-paper text-ink antialiased">
+        <flux:header container class="sticky top-0 z-20 border-b border-line bg-card/90 backdrop-blur-sm">
             <x-app-logo href="{{ route('home') }}" wire:navigate />
 
             <flux:spacer />
@@ -12,15 +13,19 @@
             <nav class="flex items-center gap-1 sm:gap-2" data-test="public-nav">
                 <livewire:cart-badge />
 
-                {{-- Language switch: shows the language it switches to, written in that language. --}}
+                {{-- Language switch: shows the language it switches to, written in that language. It's a plain
+                     form POST, so Livewire's loading states don't apply: Alpine disables the button once sent
+                     (the submit event bubbles to this wrapper). --}}
                 @php($otherLocale = \App\Enums\Locale::current()->other())
-                <form method="POST" action="{{ route('locale.switch') }}" data-test="locale-switch">
-                    @csrf
-                    <input type="hidden" name="locale" value="{{ $otherLocale->value }}">
-                    <flux:button type="submit" variant="ghost" size="sm" lang="{{ $otherLocale->htmlLang() }}" :aria-label="__('Switch language')" data-test="locale-switch-button">
-                        {{ $otherLocale->switchLabel() }}
-                    </flux:button>
-                </form>
+                <div x-data="{ busy: false }" x-on:submit="busy = true">
+                    <form method="POST" action="{{ route('locale.switch') }}" data-test="locale-switch">
+                        @csrf
+                        <input type="hidden" name="locale" value="{{ $otherLocale->value }}">
+                        <flux:button type="submit" variant="ghost" size="sm" lang="{{ $otherLocale->htmlLang() }}" :aria-label="__('Switch language')" x-bind:disabled="busy" x-bind:aria-busy="busy" data-test="locale-switch-button">
+                            {{ $otherLocale->switchLabel() }}
+                        </flux:button>
+                    </form>
+                </div>
 
                 @auth
                     {{-- Same pattern as the sidebar's user menu (components/desktop-user-menu). --}}
@@ -82,12 +87,13 @@
                         </flux:menu>
                     </flux:dropdown>
                 @else
-                    <flux:button :href="route('login')" variant="ghost" size="sm" wire:navigate>
+                    {{-- Most demo visitors are new, so Register is the tea-brown button on every width. On phones,
+                         Log in is hidden when both don't fit; the register page links to log in. --}}
+                    <flux:button :href="route('login')" variant="ghost" size="sm" class="max-sm:hidden" wire:navigate data-test="login-link">
                         {{ __('Log in') }}
                     </flux:button>
-                    {{-- Hidden on phones so the header fits at 390px in English; the login page links to sign-up. --}}
                     @if (Route::has('register'))
-                        <flux:button :href="route('register')" variant="primary" size="sm" class="max-sm:hidden" wire:navigate>
+                        <flux:button :href="route('register')" variant="primary" size="sm" wire:navigate data-test="register-link">
                             {{ __('Register') }}
                         </flux:button>
                     @endif

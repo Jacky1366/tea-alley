@@ -12,7 +12,13 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-@fonts
+{{-- Customer layouts (#62) also load Fraunces for headings; staff pages only Instrument Sans, as before. --}}
+@if ($customerTheme ?? false)
+    <meta name="color-scheme" content="light" />
+    @fonts
+@else
+    @fonts('instrument-sans')
+@endif
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance

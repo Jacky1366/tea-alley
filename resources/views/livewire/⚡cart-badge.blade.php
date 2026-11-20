@@ -26,7 +26,7 @@ new class extends Component {
 <a
     href="{{ route('cart') }}"
     wire:navigate
-    class="relative inline-flex size-9 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-800/5 dark:text-white dark:hover:bg-white/15"
+    class="relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-zinc-100"
     aria-label="{{ trans_choice('{0} Cart, empty|{1} Cart, :count drink|[2,*] Cart, :count drinks', $count, ['count' => $count]) }}"
     data-test="cart-link"
 >

@@ -6,10 +6,40 @@
 @source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
 @source '../../vendor/livewire/flux/stubs/**/*.blade.php';
 
-@custom-variant dark (&:where(.dark, .dark *));
+/*
+ * Customer pages (body.theme-customer, #62) are light only: `dark:` never matches inside them,
+ * even when <html> has .dark (the visitor's appearance setting or OS). The extra condition is
+ * wrapped in :where(), so specificity, and every staff page, is exactly as before.
+ */
+@custom-variant dark (&:where(.dark, .dark *):where(:not(.theme-customer, .theme-customer *)));
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /*
+     * Customer theme (#62): warm, hand-made tea shop. Light only; used inside .theme-customer.
+     * Contrast (WCAG AA) is listed in the PR. The first seven are the issue's tokens; the rest
+     * are derived from them where a token alone isn't AA or a shade is needed.
+     */
+    --color-paper: #FAF5EC;       /* page background */
+    --color-card: #FFFDF8;        /* cards, panels */
+    --color-ink: #3B2A20;         /* body text (no pure black) */
+    --color-tea: #8B5A2B;         /* primary: buttons, links, logo, active tab */
+    --color-matcha: #7A8F5C;      /* success fills and dots ("Live", "Ready"); not AA as text */
+    --color-line: #E8DCC8;        /* borders, dividers */
+    --color-clay: #B5523B;        /* errors, sold out, destructive */
+    --color-tea-deep: #74481F;    /* primary hover / pressed */
+    --color-matcha-deep: #566B3A; /* success text (matcha itself is 3.3:1 on paper) */
+    --color-ink-muted: #76604F;   /* secondary text */
+    --color-roast: #3D2B1F;       /* photo placeholder, close to the photos' dark background */
+    --color-roast-light: #5A4232; /* placeholder's soft highlight */
+
+    /* Chinese has no web font (multi-MB files over the tunnel): system CJK fonts after the Latin one. */
+    --font-display: 'Fraunces', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', ui-serif, Georgia, serif;
+    --font-customer: 'Instrument Sans', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --shadow-warm: 0 1px 2px rgb(59 42 32 / 0.06), 0 10px 24px -14px rgb(59 42 32 / 0.35);
+    --shadow-warm-lg: 0 2px 4px rgb(59 42 32 / 0.06), 0 18px 32px -16px rgb(59 42 32 / 0.4);
 
     --color-zinc-50: #fafafa;
     --color-zinc-100: #f5f5f5;
@@ -64,3 +94,82 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/*
+ * Customer theme (#62). Scoped to body.theme-customer (layouts/public, layouts/auth/simple), so
+ * Flux's global accent and every staff page (/admin, /barista, settings) stay as they are.
+ * Flux components draw with zinc and white; inside the customer layouts those become warm
+ * shades of the tokens above.
+ */
+.theme-customer {
+    --color-accent: var(--color-tea);
+    --color-accent-content: var(--color-tea);
+    --color-accent-foreground: var(--color-card);
+
+    --color-white: var(--color-card);
+    --color-zinc-50: #F6EFE3;
+    --color-zinc-100: #F0E6D6;
+    --color-zinc-200: var(--color-line);
+    --color-zinc-300: #D6C4A9;
+    --color-zinc-400: #7A6451;
+    --color-zinc-500: var(--color-ink-muted);
+    --color-zinc-600: #5F4B3C;
+    --color-zinc-700: #4B3A2D;
+    --color-zinc-800: var(--color-ink);
+    --color-zinc-900: #2B1E16;
+    --color-zinc-950: #1C130D;
+
+    /* Flux's green (success, "Live", paid) and red (errors, danger) become matcha and clay. */
+    --color-green-50: #F1F4EA;
+    --color-green-100: #E3EAD5;
+    --color-green-200: #CBD6B6;
+    --color-green-300: #AFBF93;
+    --color-green-400: #93A673;
+    --color-green-500: var(--color-matcha);
+    --color-green-600: #657A48;
+    --color-green-700: var(--color-matcha-deep);
+    --color-green-800: #43542D;
+    --color-green-900: #334022;
+    --color-red-50: #FBEFEB;
+    --color-red-100: #F6DDD5;
+    --color-red-200: #EDBFB2;
+    --color-red-300: #DF9A87;
+    --color-red-400: #CB735D;
+    --color-red-500: var(--color-clay);
+    --color-red-600: #A3452F;
+    --color-red-700: #8A3926;
+    --color-red-800: #6E2D1E;
+    --color-red-900: #55231A;
+
+    --font-sans: var(--font-customer);
+    font-family: var(--font-customer);
+    color-scheme: light;
+    color: var(--color-ink);
+    background-color: var(--color-paper);
+}
+
+/* :root.dark sets a dark color-scheme (scrollbars, form controls); not on customer pages. */
+:root:has(> body.theme-customer) {
+    color-scheme: light;
+}
+
+.theme-customer [data-flux-heading] {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.theme-customer :focus-visible {
+    outline: 2px solid var(--color-tea);
+    outline-offset: 2px;
+}
+
+/* Flux's native select arrow has a .dark variant in flux.css; keep the light one. */
+.theme-customer select[data-flux-select-native] {
+    background-image: url("data:image/svg+xml,%3csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M8 9L12 5L16 9' stroke='%237A6451' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3cpath d='M16 15L12 19L8 15' stroke='%237A6451' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+}
+
+.dark .theme-customer select[data-flux-select-native]:hover:not(:disabled),
+.theme-customer select[data-flux-select-native]:hover:not(:disabled) {
+    background-image: url("data:image/svg+xml,%3csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M8 9L12 5L16 9' stroke='%233B2A20' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3cpath d='M16 15L12 19L8 15' stroke='%233B2A20' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+}

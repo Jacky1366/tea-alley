@@ -300,3 +300,35 @@ describe('tampering', function () {
         'tomorrow' => fn () => slotValue(vancouverAt('15:00')->addDay()),
     ]);
 });
+
+describe('test card hint (#62)', function () {
+    beforeEach(fn () => fillCheckoutCart($this));
+
+    test('it shows with Stripe and a test-mode key', function (string $key) {
+        config(['payment.gateway' => 'stripe', 'services.stripe.secret' => $key]);
+
+        checkoutPage($this->user)
+            ->assertSeeHtml('data-test="test-card-hint"')
+            ->assertSee('4242 4242 4242 4242');
+    })->with(['secret key' => 'sk_test_not_a_real_key', 'restricted key' => 'rk_test_not_a_real_key']);
+
+    test('it is hidden with a live key, no key, or the fake gateway', function (string $gateway, ?string $key) {
+        config(['payment.gateway' => $gateway, 'services.stripe.secret' => $key]);
+
+        checkoutPage($this->user)
+            ->assertDontSeeHtml('data-test="test-card-hint"')
+            ->assertDontSee('4242');
+    })->with([
+        'live secret key' => ['stripe', 'sk_live_not_a_real_key'],
+        'live restricted key' => ['stripe', 'rk_live_not_a_real_key'],
+        'no key' => ['stripe', null],
+        'fake gateway with a test key' => ['fake', 'sk_test_not_a_real_key'],
+    ]);
+
+    test('it is translated', function () {
+        config(['payment.gateway' => 'stripe', 'services.stripe.secret' => 'sk_test_not_a_real_key']);
+        app()->setLocale('zh_TW');
+
+        checkoutPage($this->user)->assertSee('示範：請用測試卡 4242 4242 4242 4242 付款');
+    });
+});
