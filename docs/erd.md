@@ -38,7 +38,8 @@ erDiagram
         bigint category_id FK
         string name_en
         string name_zh
-        text description "nullable"
+        text description_en "nullable"
+        text description_zh "nullable"
         uint price_cents
         string photo_path "nullable"
         string tax_category "standard | carbonated"

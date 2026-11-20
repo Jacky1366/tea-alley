@@ -10,6 +10,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 
 class MenuItemForm
@@ -32,8 +33,19 @@ class MenuItemForm
                     ->label('Name (Chinese)')
                     ->required()
                     ->maxLength(255),
-                Textarea::make('description')
-                    ->maxLength(1000)
+                // #64: shown on the drink builder, escaped. 300 characters (mb_strlen), checked on the server too.
+                // Side by side on their own row, like the old single description field.
+                Grid::make(2)
+                    ->schema([
+                        Textarea::make('description_en')
+                            ->label('Description (English)')
+                            ->rows(3)
+                            ->maxLength(300),
+                        Textarea::make('description_zh')
+                            ->label('Description (Chinese)')
+                            ->rows(3)
+                            ->maxLength(300),
+                    ])
                     ->columnSpanFull(),
                 // Entered in dollars; validated as dollars, then converted to cents on the server when saved.
                 TextInput::make('price_cents')

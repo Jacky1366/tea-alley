@@ -220,9 +220,8 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
                         <span class="rounded-full bg-clay px-2.5 py-0.5 text-xs font-semibold text-card" data-test="sold-out">{{ __('Sold out') }}</span>
                     @endif
                 </div>
-                {{-- The description has no Chinese column yet, so it's shown in English mode only. --}}
-                @if ($this->item->description && app()->getLocale() === \App\Enums\Locale::English->value)
-                    <flux:text>{{ $this->item->description }}</flux:text>
+                @if ($description = $this->item->localizedDescription())
+                    <flux:text class="text-base!" data-test="description">{{ $description }}</flux:text>
                 @endif
                 <p class="text-xl font-semibold text-tea" data-test="base-price">{{ $this->money($this->item->price_cents) }}</p>
             </div>

@@ -17,6 +17,8 @@ final class AuditChanges
     private const LABELS = [
         'name_en' => 'Name (EN)',
         'name_zh' => 'Name (ZH)',
+        'description_en' => 'Description (EN)',
+        'description_zh' => 'Description (ZH)',
         'price_cents' => 'Price',
         'price_delta_cents' => 'Price change',
         'is_available' => 'Available',
