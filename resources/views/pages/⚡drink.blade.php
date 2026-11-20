@@ -173,7 +173,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
     }
 }; ?>
 
-<div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
+<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
     <div>
         <flux:button :href="route('home')" wire:navigate variant="ghost" size="sm" icon="arrow-left" class="-ms-2">
             {{ __('Back to menu') }}
@@ -182,163 +182,200 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
 
     <x-ordering-banner />
 
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-        @if ($photo = $this->photoUrl())
-            <img src="{{ $photo }}" alt="{{ $this->item->localizedName() }}" class="aspect-square w-full rounded-xl object-cover sm:w-48">
-        @else
-            <div class="flex aspect-square w-full items-center justify-center rounded-xl bg-zinc-100 text-7xl sm:w-48 dark:bg-zinc-700" role="img" aria-label="{{ __('No photo') }}">
-                🧋
-            </div>
-        @endif
-
-        <div class="flex min-w-0 flex-1 flex-col gap-2">
-            <div class="flex flex-wrap items-center gap-2">
-                <flux:heading size="xl" level="1">{{ $this->item->localizedName() }}</flux:heading>
-                @unless ($this->item->is_available)
-                    <flux:badge color="red" size="sm" data-test="sold-out">{{ __('Sold out') }}</flux:badge>
-                @endunless
-            </div>
-            {{-- The description has no Chinese column yet, so it's shown in English mode only. --}}
-            @if ($this->item->description && app()->getLocale() === \App\Enums\Locale::English->value)
-                <flux:text>{{ $this->item->description }}</flux:text>
-            @endif
-            <flux:heading size="lg" data-test="base-price">{{ $this->money($this->item->price_cents) }}</flux:heading>
-        </div>
-    </div>
-
-    @error('item')
-        <flux:callout variant="danger" icon="x-circle" data-test="error-item">
-            <flux:callout.text>{{ $message }}</flux:callout.text>
-        </flux:callout>
-    @enderror
-
-    {{--
-        DISPLAY-ONLY PREVIEW: the Alpine totalCents below is a live estimate for the customer.
-        It is never sent to the server, stored, or charged. PricingService is the source of
-        truth for every amount that is (see CLAUDE.md, Data rules).
-    --}}
-    <form
-        wire:submit="addToCart"
-        class="flex flex-col gap-6"
-        x-data="{
-            base: @js($this->priceData['base']),
-            deltas: @js((object) $this->priceData['deltas']),
-            get totalCents() {
-                let cents = this.base;
-                for (const value of Object.values(this.$wire.selected ?? {})) {
-                    for (const id of [].concat(value)) {
-                        cents += this.deltas[id] ?? 0;
-                    }
-                }
-                const quantity = parseInt(this.$wire.quantity, 10);
-                return cents * (Number.isInteger(quantity) ? quantity : 0);
-            },
-            money(cents) {
-                return '$' + (cents / 100).toFixed(2);
-            },
-        }"
-    >
-        @if ($errors->has('selected'))
-            <flux:callout variant="danger" icon="x-circle" data-test="error-selected">
-                @foreach ($errors->get('selected') as $message)
-                    <flux:callout.text>{{ $message }}</flux:callout.text>
-                @endforeach
-            </flux:callout>
-        @endif
-
-        @foreach ($this->item->modifierGroups as $group)
-            @php($single = $group->max_select === 1)
-            <fieldset class="flex flex-col gap-2" wire:key="group-{{ $group->id }}" data-test="group-{{ $group->id }}">
-                <legend class="mb-2 flex w-full flex-wrap items-baseline justify-between gap-2">
-                    <span class="font-medium text-zinc-800 dark:text-white">{{ $group->localizedName() }}</span>
-                    <span class="text-sm text-zinc-500 dark:text-zinc-400">
-                        @if ($group->effectiveMin() > 0)
-                            {{ __('Required') }}
-                        @else
-                            {{ __('Optional') }}
-                        @endif
-                        @unless ($single)
-                            · {{ __('up to :max', ['max' => $group->max_select]) }}
-                        @endunless
-                    </span>
-                </legend>
-
-                <div class="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
-                    @if ($single && $group->effectiveMin() === 0)
-                        <label class="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2">
-                            <input type="radio" name="group-{{ $group->id }}" value="" wire:model="selected.{{ $group->id }}" class="size-4 accent-[var(--color-accent)]" data-test="option-none-{{ $group->id }}">
-                            <span class="flex-1">{{ __('None') }}</span>
-                        </label>
-                    @endif
-
-                    @foreach ($group->options as $option)
-                        <label
-                            wire:key="option-{{ $option->id }}"
-                            @class([
-                                'flex min-h-12 items-center gap-3 px-4 py-2',
-                                'cursor-pointer' => $option->is_available,
-                                'cursor-not-allowed opacity-50' => ! $option->is_available,
-                            ])
-                        >
-                            <input
-                                type="{{ $single ? 'radio' : 'checkbox' }}"
-                                name="group-{{ $group->id }}{{ $single ? '' : '[]' }}"
-                                value="{{ $option->id }}"
-                                wire:model="selected.{{ $group->id }}"
-                                @disabled(! $option->is_available)
-                                class="size-4 accent-[var(--color-accent)]"
-                                data-test="option-{{ $option->id }}"
-                            >
-                            <span class="min-w-0 flex-1">
-                                {{ $option->localizedName() }}
-                                @unless ($option->is_available)
-                                    <flux:badge size="sm" color="zinc" class="ms-1">{{ __('Sold out') }}</flux:badge>
-                                @endunless
-                            </span>
-                            @if ($option->price_delta_cents > 0)
-                                <span class="shrink-0 text-sm text-zinc-600 dark:text-zinc-300">+{{ $this->money($option->price_delta_cents) }}</span>
-                            @endif
-                        </label>
-                    @endforeach
+    {{-- Desktop: photo beside the options. Phones: photo on top, capped in height so the options stay close. --}}
+    <div class="grid gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start md:gap-10">
+        @php($soldOut = ! $this->item->is_available)
+        <div class="md:sticky md:top-24">
+            @if ($photo = $this->photoUrl())
+                <img
+                    src="{{ $photo }}"
+                    alt="{{ $this->item->localizedName() }}"
+                    width="700"
+                    height="875"
+                    @class([
+                        'mx-auto aspect-[4/5] h-[42svh] w-auto rounded-2xl bg-roast object-cover shadow-warm-lg md:h-auto md:w-full',
+                        'grayscale' => $soldOut,
+                    ])
+                    data-test="drink-photo"
+                >
+            @else
+                <div
+                    @class([
+                        'mx-auto flex aspect-[4/5] h-[42svh] w-auto items-center justify-center rounded-2xl bg-radial-[at_50%_35%] from-roast-light to-roast to-70% shadow-warm-lg md:h-auto md:w-full',
+                        'grayscale' => $soldOut,
+                    ])
+                    aria-hidden="true"
+                    data-test="photo-placeholder"
+                >
+                    <x-app-logo-icon class="size-1/4 fill-current text-paper/90" />
                 </div>
-
-                @foreach ($errors->get('selected.'.$group->id) as $message)
-                    <flux:text class="text-red-600! dark:text-red-400!" data-test="error-group-{{ $group->id }}">{{ $message }}</flux:text>
-                @endforeach
-            </fieldset>
-        @endforeach
-
-        <div class="flex items-end gap-4">
-            <flux:select wire:model="quantity" :label="__('Quantity')" class="max-w-28" data-test="quantity">
-                @foreach (range(ModifierValidator::MIN_QUANTITY, ModifierValidator::MAX_QUANTITY) as $n)
-                    <flux:select.option :value="$n">{{ $n }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <div class="ms-auto text-end">
-                <flux:text size="sm">{{ __('Total') }}</flux:text>
-                <flux:heading size="xl" data-test="total" x-text="money(totalCents)">{{ $this->displayTotal() }}</flux:heading>
-            </div>
+            @endif
         </div>
-        @error('quantity')
-            <flux:text class="text-red-600! dark:text-red-400!" data-test="error-quantity">{{ $message }}</flux:text>
-        @enderror
 
-        @if ($this->requiredOptionsSoldOut && $this->item->is_available)
-            <flux:callout icon="exclamation-triangle" color="amber" data-test="required-sold-out">
-                <flux:callout.text>{{ __('Some required options are sold out') }}</flux:callout.text>
-            </flux:callout>
-        @endif
+        <div class="flex min-w-0 flex-col gap-6">
+            <div class="flex flex-col gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <flux:heading size="xl" level="1" class="text-3xl!">{{ $this->item->localizedName() }}</flux:heading>
+                    @if ($soldOut)
+                        <span class="rounded-full bg-clay px-2.5 py-0.5 text-xs font-semibold text-card" data-test="sold-out">{{ __('Sold out') }}</span>
+                    @endif
+                </div>
+                {{-- The description has no Chinese column yet, so it's shown in English mode only. --}}
+                @if ($this->item->description && app()->getLocale() === \App\Enums\Locale::English->value)
+                    <flux:text>{{ $this->item->description }}</flux:text>
+                @endif
+                <p class="text-xl font-semibold text-tea" data-test="base-price">{{ $this->money($this->item->price_cents) }}</p>
+            </div>
 
-        @foreach (['ordering', 'cart'] as $errorKey)
-            @error($errorKey)
-                <flux:callout variant="danger" icon="x-circle" data-test="error-{{ $errorKey }}">
+            @error('item')
+                <flux:callout variant="danger" icon="x-circle" data-test="error-item">
                     <flux:callout.text>{{ $message }}</flux:callout.text>
                 </flux:callout>
             @enderror
-        @endforeach
 
-        <flux:button type="submit" variant="primary" class="w-full" icon="shopping-bag" :disabled="! $this->canOrder" data-test="add-button">
-            {{ __('Add to cart') }}
-        </flux:button>
-    </form>
+            {{--
+                DISPLAY-ONLY PREVIEW: the Alpine totalCents below is a live estimate for the customer.
+                It is never sent to the server, stored, or charged. PricingService is the source of
+                truth for every amount that is (see CLAUDE.md, Data rules).
+            --}}
+            <form
+                wire:submit="addToCart"
+                class="flex flex-col gap-6"
+                x-data="{
+                    base: @js($this->priceData['base']),
+                    deltas: @js((object) $this->priceData['deltas']),
+                    get totalCents() {
+                        let cents = this.base;
+                        for (const value of Object.values(this.$wire.selected ?? {})) {
+                            for (const id of [].concat(value)) {
+                                cents += this.deltas[id] ?? 0;
+                            }
+                        }
+                        const quantity = parseInt(this.$wire.quantity, 10);
+                        return cents * (Number.isInteger(quantity) ? quantity : 0);
+                    },
+                    money(cents) {
+                        return '$' + (cents / 100).toFixed(2);
+                    },
+                }"
+            >
+                @if ($errors->has('selected'))
+                    <flux:callout variant="danger" icon="x-circle" data-test="error-selected">
+                        @foreach ($errors->get('selected') as $message)
+                            <flux:callout.text>{{ $message }}</flux:callout.text>
+                        @endforeach
+                    </flux:callout>
+                @endif
+
+                {{-- Options stay real radio buttons and checkboxes (keyboard and screen readers); rows are 48px tall. --}}
+                @php($optionRow = 'flex min-h-12 items-center gap-3 px-4 py-2 transition-colors has-[:checked]:bg-zinc-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-tea')
+                @foreach ($this->item->modifierGroups as $group)
+                    @php($single = $group->max_select === 1)
+                    <fieldset class="flex flex-col gap-2" wire:key="group-{{ $group->id }}" data-test="group-{{ $group->id }}">
+                        <legend class="mb-2 flex w-full flex-wrap items-baseline justify-between gap-2">
+                            <span class="font-display text-lg font-semibold text-ink">{{ $group->localizedName() }}</span>
+                            <span class="text-sm text-ink-muted">
+                                @if ($group->effectiveMin() > 0)
+                                    {{ __('Required') }}
+                                @else
+                                    {{ __('Optional') }}
+                                @endif
+                                @unless ($single)
+                                    · {{ __('up to :max', ['max' => $group->max_select]) }}
+                                @endunless
+                            </span>
+                        </legend>
+
+                        <div class="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+                            @if ($single && $group->effectiveMin() === 0)
+                                <label class="{{ $optionRow }} cursor-pointer">
+                                    <input type="radio" name="group-{{ $group->id }}" value="" wire:model="selected.{{ $group->id }}" class="size-5 shrink-0 accent-[var(--color-accent)] focus-visible:outline-none" data-test="option-none-{{ $group->id }}">
+                                    <span class="flex-1">{{ __('None') }}</span>
+                                </label>
+                            @endif
+
+                            @foreach ($group->options as $option)
+                                <label
+                                    wire:key="option-{{ $option->id }}"
+                                    @class([
+                                        $optionRow,
+                                        'cursor-pointer' => $option->is_available,
+                                        'cursor-not-allowed text-ink-muted' => ! $option->is_available,
+                                    ])
+                                >
+                                    <input
+                                        type="{{ $single ? 'radio' : 'checkbox' }}"
+                                        name="group-{{ $group->id }}{{ $single ? '' : '[]' }}"
+                                        value="{{ $option->id }}"
+                                        wire:model="selected.{{ $group->id }}"
+                                        @disabled(! $option->is_available)
+                                        class="size-5 shrink-0 accent-[var(--color-accent)] focus-visible:outline-none"
+                                        data-test="option-{{ $option->id }}"
+                                    >
+                                    <span class="min-w-0 flex-1">
+                                        {{ $option->localizedName() }}
+                                        @unless ($option->is_available)
+                                            <span class="ms-1 rounded-full border border-clay px-2 py-0.5 text-xs font-medium text-clay">{{ __('Sold out') }}</span>
+                                        @endunless
+                                    </span>
+                                    @if ($option->price_delta_cents > 0)
+                                        <span class="shrink-0 text-sm text-ink-muted">+{{ $this->money($option->price_delta_cents) }}</span>
+                                    @endif
+                                </label>
+                            @endforeach
+                        </div>
+
+                        @foreach ($errors->get('selected.'.$group->id) as $message)
+                            <flux:text class="text-red-600!" data-test="error-group-{{ $group->id }}">{{ $message }}</flux:text>
+                        @endforeach
+                    </fieldset>
+                @endforeach
+
+                @if ($this->requiredOptionsSoldOut && $this->item->is_available)
+                    <flux:callout icon="exclamation-triangle" color="amber" data-test="required-sold-out">
+                        <flux:callout.text>{{ __('Some required options are sold out') }}</flux:callout.text>
+                    </flux:callout>
+                @endif
+
+                @foreach (['ordering', 'cart'] as $errorKey)
+                    @error($errorKey)
+                        <flux:callout variant="danger" icon="x-circle" data-test="error-{{ $errorKey }}">
+                            <flux:callout.text>{{ $message }}</flux:callout.text>
+                        </flux:callout>
+                    @enderror
+                @endforeach
+
+                {{-- Phones: quantity, total and the button stay in reach at the bottom of the screen. --}}
+                <div class="sticky bottom-0 z-10 -mx-4 flex flex-col gap-3 border-t border-line bg-card/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-4 sm:shadow-warm">
+                    <div class="flex items-end gap-4">
+                        <flux:select wire:model="quantity" :label="__('Quantity')" class="max-w-28" data-test="quantity">
+                            @foreach (range(ModifierValidator::MIN_QUANTITY, ModifierValidator::MAX_QUANTITY) as $n)
+                                <flux:select.option :value="$n">{{ $n }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <div class="ms-auto text-end">
+                            <flux:text size="sm">{{ __('Total') }}</flux:text>
+                            <flux:heading size="xl" data-test="total" x-text="money(totalCents)">{{ $this->displayTotal() }}</flux:heading>
+                        </div>
+                    </div>
+                    @error('quantity')
+                        <flux:text class="text-red-600!" data-test="error-quantity">{{ $message }}</flux:text>
+                    @enderror
+
+                    <flux:button
+                        type="submit"
+                        variant="primary"
+                        class="h-12! w-full text-base!"
+                        icon="shopping-bag"
+                        :disabled="! $this->canOrder"
+                        wire:loading.attr="disabled"
+                        wire:target="addToCart"
+                        data-test="add-button"
+                    >
+                        {{ __('Add to cart') }}
+                    </flux:button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>

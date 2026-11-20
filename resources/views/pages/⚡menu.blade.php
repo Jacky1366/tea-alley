@@ -121,46 +121,81 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
 
 <div class="flex flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Menu') }}</flux:heading>
+        <flux:heading size="xl" level="1" class="text-3xl!">{{ __('Menu') }}</flux:heading>
         <flux:text class="mt-1">{{ __('Freshly brewed bubble tea, made to order.') }}</flux:text>
     </div>
 
-    {{-- Online ordering status. The menu stays browsable in every state. --}}
+    {{--
+        "Added to cart" toast (Flux Pro's toast isn't installed). The live region is rendered empty and
+        filled a moment later, so screen readers announce it. Hides itself after about 3 seconds;
+        no slide or fade with prefers-reduced-motion.
+    --}}
     @if (session('cart-status'))
-        <flux:callout icon="check-circle" color="green" data-test="cart-status">
-            <flux:callout.text>
-                {{ session('cart-status') }}
-                <flux:link :href="route('cart')" wire:navigate>{{ __('View cart') }}</flux:link>
-            </flux:callout.text>
-        </flux:callout>
+        <div
+            class="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4 sm:bottom-6"
+            x-data="{ shown: false }"
+            x-init="$nextTick(() => { shown = true; setTimeout(() => shown = false, 3200) })"
+            data-test="cart-status"
+        >
+            <div role="status" aria-live="polite" class="w-full max-w-sm">
+                <div
+                    x-show="shown"
+                    x-transition:enter="transition duration-200 ease-out motion-reduce:transition-none"
+                    x-transition:enter-start="translate-y-2 opacity-0"
+                    x-transition:leave="transition duration-300 ease-in motion-reduce:transition-none"
+                    x-transition:leave-end="opacity-0"
+                    style="display: none"
+                    class="pointer-events-auto flex items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-sm text-paper shadow-warm-lg"
+                >
+                    <flux:icon.check-circle variant="mini" class="shrink-0 text-green-300" />
+                    <p class="flex-1">{{ session('cart-status') }}</p>
+                    <a href="{{ route('cart') }}" wire:navigate class="shrink-0 font-semibold text-paper underline underline-offset-2">{{ __('View cart') }}</a>
+                </div>
+            </div>
+        </div>
     @endif
+
+    {{-- Online ordering status. The menu stays browsable in every state. --}}
 
     <x-ordering-banner />
 
-    {{-- Category tabs: horizontally scrollable on phones --}}
-    <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="{{ __('Categories') }}">
-        <flux:button
-            size="sm"
-            :variant="$this->activeCategory === null ? 'primary' : 'ghost'"
+    {{--
+        Category filter: toggle buttons (aria-pressed) in a labelled group, not a tablist. They filter
+        the grid rather than switch panels, and plain buttons need no arrow-key handling.
+        Horizontally scrollable on phones (the selected one is scrolled into view on load); 44px tall tap targets.
+    --}}
+    <div
+        class="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0"
+        role="group"
+        aria-label="{{ __('Categories') }}"
+        x-data
+        x-init="$el.querySelector('[aria-pressed=true]')?.scrollIntoView({ inline: 'center', block: 'nearest' })"
+    >
+        @php($tabClass = 'inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors')
+        @php($activeTab = 'border-tea bg-tea text-card shadow-warm')
+        @php($idleTab = 'border-line bg-card text-ink hover:border-tea/40 hover:bg-zinc-50')
+        <button
+            type="button"
             wire:click="selectCategory('')"
-            role="tab"
-            :aria-selected="$this->activeCategory === null ? 'true' : 'false'"
-            class="shrink-0"
+            wire:target="selectCategory('')"
+            wire:loading.class="opacity-60"
+            aria-pressed="{{ $this->activeCategory === null ? 'true' : 'false' }}"
+            class="{{ $tabClass }} {{ $this->activeCategory === null ? $activeTab : $idleTab }}"
         >
             {{ __('All') }}
-        </flux:button>
+        </button>
         @foreach ($this->categories as $tab)
-            <flux:button
-                size="sm"
-                :variant="$this->activeCategory?->is($tab) ? 'primary' : 'ghost'"
-                :wire:click="'selectCategory('.\Illuminate\Support\Js::from($tab->slug).')'"
+            <button
+                type="button"
+                wire:click="selectCategory({{ \Illuminate\Support\Js::from($tab->slug) }})"
+                wire:target="selectCategory({{ \Illuminate\Support\Js::from($tab->slug) }})"
+                wire:loading.class="opacity-60"
                 wire:key="tab-{{ $tab->id }}"
-                role="tab"
-                :aria-selected="$this->activeCategory?->is($tab) ? 'true' : 'false'"
-                class="shrink-0"
+                aria-pressed="{{ $this->activeCategory?->is($tab) ? 'true' : 'false' }}"
+                class="{{ $tabClass }} {{ $this->activeCategory?->is($tab) ? $activeTab : $idleTab }}"
             >
                 {{ $tab->localizedName() }}
-            </flux:button>
+            </button>
         @endforeach
     </div>
 
@@ -181,42 +216,59 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
     </div>
 
     @if ($this->drinks->isEmpty())
-        <flux:callout icon="magnifying-glass" data-test="menu-empty">
-            <flux:callout.heading>{{ __('No drinks found') }}</flux:callout.heading>
-            <flux:callout.text>{{ __('Try another category or search term.') }}</flux:callout.text>
-        </flux:callout>
+        <x-empty-state icon="magnifying-glass" data-test="menu-empty">
+            @if (trim($search) !== '')
+                <x-slot:heading>{{ __('No drinks found') }}</x-slot:heading>
+                {{ __('Nothing matches “:term”. Try another word, or browse the whole menu.', ['term' => mb_substr(trim($search), 0, 100)]) }}
+            @elseif ($this->activeCategory !== null)
+                <x-slot:heading>{{ __('Nothing in :category right now', ['category' => $this->activeCategory->localizedName()]) }}</x-slot:heading>
+                {{ __('Check back soon, or have a look at the rest of the menu.') }}
+            @else
+                <x-slot:heading>{{ __('No drinks found') }}</x-slot:heading>
+                {{ __('Try another category or search term.') }}
+            @endif
+            <x-slot:action>
+                <flux:button :href="route('home')" wire:navigate variant="primary" size="sm">{{ __('See all drinks') }}</flux:button>
+            </x-slot:action>
+        </x-empty-state>
     @else
-        {{-- Mobile-first: one column on phones, grid from sm up --}}
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" data-test="menu-grid">
+        {{-- Mobile first: two columns on phones (390px), up to four on desktop. --}}
+        <div class="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4" data-test="menu-grid">
             @foreach ($this->drinks as $drink)
                 <a
                     href="{{ route('menu.show', $drink) }}"
                     wire:navigate
                     wire:key="drink-{{ $drink->id }}"
-                    class="block rounded-xl transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    class="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-warm transition duration-200 hover:-translate-y-0.5 hover:shadow-warm-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                     data-test="drink-link"
                 >
-                <flux:card class="flex h-full flex-col gap-3 overflow-hidden p-0!" data-test="drink-card">
-                    @if ($photo = $this->photoUrl($drink))
-                        <img src="{{ $photo }}" alt="{{ $drink->localizedName() }}" class="aspect-square w-full object-cover" loading="lazy">
-                    @else
-                        <div class="flex aspect-square w-full items-center justify-center bg-zinc-100 text-6xl dark:bg-zinc-700" role="img" aria-label="{{ __('No photo') }}">
-                            🧋
-                        </div>
-                    @endif
-
-                    <div class="flex flex-1 flex-col gap-1 px-4 pb-4">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <flux:heading size="lg" class="truncate">{{ $drink->localizedName() }}</flux:heading>
+                    <div class="flex flex-1 flex-col" data-test="drink-card">
+                        {{-- Photos are 4:5 portraits (700x875), already framed: shown whole, never cropped further. --}}
+                        @if ($photo = $this->photoUrl($drink))
+                            <img
+                                src="{{ $photo }}"
+                                alt="{{ $drink->localizedName() }}"
+                                width="700"
+                                height="875"
+                                class="aspect-[4/5] h-auto w-full bg-roast object-cover"
+                                loading="{{ $loop->index < 4 ? 'eager' : 'lazy' }}"
+                                decoding="async"
+                            >
+                        @else
+                            {{-- No photo yet: a dark warm block like the photos' background, so a half-photographed menu stays consistent. --}}
+                            <div class="flex aspect-[4/5] w-full items-center justify-center bg-radial-[at_50%_35%] from-roast-light to-roast to-70%" aria-hidden="true" data-test="photo-placeholder">
+                                <x-app-logo-icon class="size-1/4 fill-current text-paper/90" />
                             </div>
-                            <flux:heading size="lg" class="shrink-0">{{ $this->price($drink) }}</flux:heading>
-                        </div>
-                        <div>
-                            <flux:badge size="sm">{{ $drink->category->localizedName() }}</flux:badge>
+                        @endif
+
+                        <div class="flex flex-1 flex-col gap-1 p-3 sm:p-4">
+                            <flux:heading level="2" class="line-clamp-2 text-[0.95rem]! leading-snug! sm:text-base!">{{ $drink->localizedName() }}</flux:heading>
+                            <div class="mt-auto flex items-end justify-between gap-2 pt-1">
+                                <span class="truncate text-xs text-ink-muted">{{ $drink->category->localizedName() }}</span>
+                                <span class="shrink-0 font-semibold text-tea">{{ $this->price($drink) }}</span>
+                            </div>
                         </div>
                     </div>
-                </flux:card>
                 </a>
             @endforeach
         </div>

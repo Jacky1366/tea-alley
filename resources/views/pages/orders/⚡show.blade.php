@@ -187,7 +187,7 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         </div>
     </div>
 
-    <section class="flex flex-col gap-3" data-test="order-progress-section">
+    <section class="flex flex-col gap-3 rounded-2xl border border-line bg-card p-4 shadow-warm" data-test="order-progress-section">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <flux:heading size="lg" level="2">{{ __('Order status') }}</flux:heading>
             @if ($this->isOpen())
@@ -235,13 +235,13 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
                     >
                         <span @class([
                             'h-1.5 rounded-full',
-                            'bg-green-500' => $i <= $current,
-                            'bg-zinc-200 dark:bg-zinc-700' => $i > $current,
+                            'bg-matcha' => $i <= $current,
+                            'bg-line' => $i > $current,
                         ])></span>
                         <span @class([
                             'text-sm',
-                            'font-semibold text-zinc-900 dark:text-white' => $i === $current,
-                            'text-zinc-500 dark:text-zinc-400' => $i !== $current,
+                            'font-semibold text-ink' => $i === $current,
+                            'text-ink-muted' => $i !== $current,
                         ])>{{ $this->stepLabel($step) }}</span>
                     </li>
                 @endforeach
@@ -262,46 +262,48 @@ new #[Layout('layouts::public')] #[Title('Receipt')] class extends Component {
         </flux:callout.text>
     </flux:callout>
 
-    <ul class="flex flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700" data-test="receipt-lines">
-        @foreach ($order->items as $item)
-            <li class="flex items-start justify-between gap-3 p-4" wire:key="item-{{ $item->id }}" data-test="receipt-line">
-                <div class="min-w-0">
-                    <flux:heading>{{ __(':drink × :quantity', ['drink' => $item->localizedName(), 'quantity' => $item->quantity]) }}</flux:heading>
-                    @foreach ($item->modifierSummary() as $group)
-                        <flux:text size="sm" class="mt-1" data-test="modifier-group">{{ $group }}</flux:text>
-                    @endforeach
-                    <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($item->unit_price_cents)]) }}</flux:text>
-                </div>
-                <flux:heading class="shrink-0" data-test="line-total">{{ $this->money($item->displayLineTotalCents()) }}</flux:heading>
-            </li>
-        @endforeach
-    </ul>
+    <div class="overflow-hidden rounded-2xl border border-line bg-card shadow-warm">
+        <ul class="flex flex-col divide-y divide-line" data-test="receipt-lines">
+            @foreach ($order->items as $item)
+                <li class="flex items-start justify-between gap-3 p-4" wire:key="item-{{ $item->id }}" data-test="receipt-line">
+                    <div class="min-w-0">
+                        <flux:heading>{{ __(':drink × :quantity', ['drink' => $item->localizedName(), 'quantity' => $item->quantity]) }}</flux:heading>
+                        @foreach ($item->modifierSummary() as $group)
+                            <flux:text size="sm" class="mt-1" data-test="modifier-group">{{ $group }}</flux:text>
+                        @endforeach
+                        <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($item->unit_price_cents)]) }}</flux:text>
+                    </div>
+                    <flux:heading class="shrink-0" data-test="line-total">{{ $this->money($item->displayLineTotalCents()) }}</flux:heading>
+                </li>
+            @endforeach
+        </ul>
 
-    {{-- Every amount below is an orders column, calculated by PricingService when the order was placed. --}}
-    <dl class="flex flex-col gap-1" data-test="totals">
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('Subtotal') }}</flux:text></dt>
-            <dd><flux:text data-test="subtotal">{{ $this->money($order->subtotal_cents) }}</flux:text></dd>
-        </div>
-        @if ($order->discount_cents > 0)
+        {{-- Every amount below is an orders column, calculated by PricingService when the order was placed. --}}
+        <dl class="flex flex-col gap-1 border-t border-line bg-zinc-50 p-4" data-test="totals">
             <div class="flex justify-between">
-                <dt><flux:text>{{ $order->promo_code ? __('Discount (:code)', ['code' => $order->promo_code]) : __('Discount') }}</flux:text></dt>
-                <dd><flux:text data-test="discount">−{{ $this->money($order->discount_cents) }}</flux:text></dd>
+                <dt><flux:text>{{ __('Subtotal') }}</flux:text></dt>
+                <dd><flux:text data-test="subtotal">{{ $this->money($order->subtotal_cents) }}</flux:text></dd>
             </div>
-        @endif
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('GST') }}</flux:text></dt>
-            <dd><flux:text data-test="gst">{{ $this->money($order->gst_cents) }}</flux:text></dd>
-        </div>
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('PST') }}</flux:text></dt>
-            <dd><flux:text data-test="pst">{{ $this->money($order->pst_cents) }}</flux:text></dd>
-        </div>
-        <div class="mt-1 flex items-baseline justify-between">
-            <dt><flux:heading size="lg">{{ __('Total') }}</flux:heading></dt>
-            <dd><flux:heading size="lg" data-test="total">{{ $this->money($order->total_cents) }}</flux:heading></dd>
-        </div>
-    </dl>
+            @if ($order->discount_cents > 0)
+                <div class="flex justify-between">
+                    <dt><flux:text>{{ $order->promo_code ? __('Discount (:code)', ['code' => $order->promo_code]) : __('Discount') }}</flux:text></dt>
+                    <dd><flux:text data-test="discount">−{{ $this->money($order->discount_cents) }}</flux:text></dd>
+                </div>
+            @endif
+            <div class="flex justify-between">
+                <dt><flux:text>{{ __('GST') }}</flux:text></dt>
+                <dd><flux:text data-test="gst">{{ $this->money($order->gst_cents) }}</flux:text></dd>
+            </div>
+            <div class="flex justify-between">
+                <dt><flux:text>{{ __('PST') }}</flux:text></dt>
+                <dd><flux:text data-test="pst">{{ $this->money($order->pst_cents) }}</flux:text></dd>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between">
+                <dt><flux:heading size="lg">{{ __('Total') }}</flux:heading></dt>
+                <dd><flux:heading size="lg" data-test="total">{{ $this->money($order->total_cents) }}</flux:heading></dd>
+            </div>
+        </dl>
+    </div>
 
     <flux:link :href="route('orders.index')" wire:navigate>{{ __('All my orders') }}</flux:link>
 </div>

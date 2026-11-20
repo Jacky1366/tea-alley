@@ -160,6 +160,20 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
         $this->redirect($url);
     }
 
+    /**
+     * #62: the "pay with test card 4242..." hint. Shown only when checkout really goes to Stripe
+     * and the key is a test-mode key (sk_test_ / rk_test_); never with a live key or the fake gateway.
+     */
+    #[Computed]
+    public function showTestCardHint(): bool
+    {
+        $key = config('services.stripe.secret');
+
+        return config('payment.gateway') === 'stripe'
+            && is_string($key)
+            && (str_starts_with($key, 'sk_test_') || str_starts_with($key, 'rk_test_'));
+    }
+
     public function money(int $cents): string
     {
         return Money::format($cents);
@@ -185,7 +199,7 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
     <div>
-        <flux:heading size="xl" level="1">{{ __('Checkout') }}</flux:heading>
+        <flux:heading size="xl" level="1" class="text-3xl!">{{ __('Checkout') }}</flux:heading>
     </div>
 
     <x-ordering-banner />
@@ -205,41 +219,43 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
         @enderror
     @endforeach
 
-    <ul class="flex flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700" data-test="checkout-lines">
-        @foreach ($this->breakdown->lines as $line)
-            <li class="flex items-start justify-between gap-3 p-4" wire:key="line-{{ $line->key }}" data-test="checkout-line">
-                <div class="min-w-0">
-                    <flux:heading>{{ __(':drink × :quantity', ['drink' => $line->drink->item->localizedName(), 'quantity' => $line->quantity]) }}</flux:heading>
-                    @if ($summary = $line->drink->optionSummary())
-                        <flux:text size="sm" class="mt-1">{{ $summary }}</flux:text>
-                    @endif
-                    <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($line->unit_price_cents)]) }}</flux:text>
-                </div>
-                <flux:heading class="shrink-0" data-test="line-total">{{ $this->money($line->line_total_cents) }}</flux:heading>
-            </li>
-        @endforeach
-    </ul>
+    <div class="overflow-hidden rounded-2xl border border-line bg-card shadow-warm">
+        <ul class="flex flex-col divide-y divide-line" data-test="checkout-lines">
+            @foreach ($this->breakdown->lines as $line)
+                <li class="flex items-start justify-between gap-3 p-4" wire:key="line-{{ $line->key }}" data-test="checkout-line">
+                    <div class="min-w-0">
+                        <flux:heading>{{ __(':drink × :quantity', ['drink' => $line->drink->item->localizedName(), 'quantity' => $line->quantity]) }}</flux:heading>
+                        @if ($summary = $line->drink->optionSummary())
+                            <flux:text size="sm" class="mt-1">{{ $summary }}</flux:text>
+                        @endif
+                        <flux:text size="sm" class="mt-1">{{ __(':price each', ['price' => $this->money($line->unit_price_cents)]) }}</flux:text>
+                    </div>
+                    <flux:heading class="shrink-0" data-test="line-total">{{ $this->money($line->line_total_cents) }}</flux:heading>
+                </li>
+            @endforeach
+        </ul>
 
-    <dl class="flex flex-col gap-1" data-test="totals">
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('Subtotal') }}</flux:text></dt>
-            <dd><flux:text data-test="subtotal">{{ $this->money($this->breakdown->subtotal_cents) }}</flux:text></dd>
-        </div>
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('GST') }}</flux:text></dt>
-            <dd><flux:text data-test="gst">{{ $this->money($this->breakdown->gst_cents) }}</flux:text></dd>
-        </div>
-        <div class="flex justify-between">
-            <dt><flux:text>{{ __('PST') }}</flux:text></dt>
-            <dd><flux:text data-test="pst">{{ $this->money($this->breakdown->pst_cents) }}</flux:text></dd>
-        </div>
-        <div class="mt-1 flex items-baseline justify-between">
-            <dt><flux:heading size="lg">{{ __('Total') }}</flux:heading></dt>
-            <dd><flux:heading size="lg" data-test="total">{{ $this->money($this->breakdown->total_cents) }}</flux:heading></dd>
-        </div>
-    </dl>
+        <dl class="flex flex-col gap-1 border-t border-line bg-zinc-50 p-4" data-test="totals">
+            <div class="flex justify-between">
+                <dt><flux:text>{{ __('Subtotal') }}</flux:text></dt>
+                <dd><flux:text data-test="subtotal">{{ $this->money($this->breakdown->subtotal_cents) }}</flux:text></dd>
+            </div>
+            <div class="flex justify-between">
+                <dt><flux:text>{{ __('GST') }}</flux:text></dt>
+                <dd><flux:text data-test="gst">{{ $this->money($this->breakdown->gst_cents) }}</flux:text></dd>
+            </div>
+            <div class="flex justify-between">
+                <dt><flux:text>{{ __('PST') }}</flux:text></dt>
+                <dd><flux:text data-test="pst">{{ $this->money($this->breakdown->pst_cents) }}</flux:text></dd>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between">
+                <dt><flux:heading size="lg">{{ __('Total') }}</flux:heading></dt>
+                <dd><flux:heading size="lg" data-test="total">{{ $this->money($this->breakdown->total_cents) }}</flux:heading></dd>
+            </div>
+        </dl>
+    </div>
 
-    <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 rounded-2xl border border-line bg-card p-4 shadow-warm">
         <flux:radio.group wire:model.live="pickupType" :label="__('Pickup')" data-test="pickup-type">
             <flux:radio
                 value="asap"
@@ -264,13 +280,20 @@ new #[Layout('layouts::public')] #[Title('Checkout')] class extends Component {
         @endif
 
         @error('pickup')
-            <flux:text class="text-red-600! dark:text-red-400!" data-test="error-pickup">{{ $message }}</flux:text>
+            <flux:text class="text-red-600!" data-test="error-pickup">{{ $message }}</flux:text>
         @enderror
     </div>
 
+    @if ($this->showTestCardHint)
+        <div class="flex items-start gap-3 rounded-2xl border border-dashed border-tea/50 bg-zinc-50 px-4 py-3 text-sm text-ink" data-test="test-card-hint">
+            <flux:icon.credit-card variant="mini" class="mt-0.5 shrink-0 text-tea" />
+            <p>{{ __('Demo: pay with test card 4242 4242 4242 4242, any future date, any CVC.') }}</p>
+        </div>
+    @endif
+
     <flux:button
         variant="primary"
-        class="w-full"
+        class="h-12! w-full text-base!"
         wire:click="placeOrder"
         wire:loading.attr="disabled"
         wire:target="placeOrder"

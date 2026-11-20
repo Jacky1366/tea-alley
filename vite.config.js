@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { bunny, fontsource } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
@@ -15,6 +15,11 @@ export default defineConfig({
             fonts: [
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
+                }),
+                // Customer headings (#62): self-hosted from npm, Latin only. No Chinese web font.
+                fontsource('Fraunces', {
+                    weights: [600],
+                    subsets: ['latin'],
                 }),
             ],
         }),
