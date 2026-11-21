@@ -7,7 +7,6 @@ use App\Services\Cart;
 use App\Services\ModifierValidator;
 use App\Services\OrderingWindow;
 use App\Support\Money;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -164,7 +163,7 @@ new #[Layout('layouts::public')] #[Title('Customize your drink')] class extends 
 
     public function photoUrl(): ?string
     {
-        return $this->item->photo_path === null ? null : Storage::disk('public')->url($this->item->photo_path);
+        return $this->item->photoUrl();
     }
 
     public function money(int $cents): string

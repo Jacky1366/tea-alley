@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 #[ObservedBy([AuditObserver::class])]
 class MenuItem extends Model implements Auditable
@@ -101,5 +102,20 @@ class MenuItem extends Model implements Auditable
     public function auditLabel(): string
     {
         return $this->name_en;
+    }
+
+    /**
+     * #67: the disk drink photos live on (MENU_PHOTO_DISK): "public" locally, the object-storage
+     * bucket on Laravel Cloud. Everything that reads or writes a photo uses this.
+     */
+    public static function photoDisk(): string
+    {
+        return config()->string('tea-alley.menu_photo_disk');
+    }
+
+    /** The photo's public URL, or null without a photo. */
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path === null ? null : Storage::disk(self::photoDisk())->url($this->photo_path);
     }
 }

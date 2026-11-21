@@ -14,6 +14,7 @@ use App\Services\SalesReport;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DemoCustomersSeeder;
 use Database\Seeders\DemoOrdersSeeder;
+use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\MenuSeeder;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\StoreHoursSeeder;
@@ -272,5 +273,43 @@ describe('what the demo shows', function () {
         $latest = Order::query()->where('user_id', $customer->id)->latest('created_at')->firstOrFail();
 
         $this->actingAs($customer)->get(route('orders.index'))->assertOk()->assertSee($latest->order_number);
+    });
+});
+
+describe('in production with TEA_ALLEY_DEMO_DATA=true (the Laravel Cloud demo, #67)', function () {
+    beforeEach(function () {
+        app()->detectEnvironment(fn () => 'production');
+        config(['tea-alley.demo_data' => true]);
+    });
+
+    test('the opt-in is off by default', function () {
+        expect((require config_path('tea-alley.php'))['demo_data'])->toBeFalse();
+    });
+
+    test('the demo customers are created, with password "password", as customers only', function () {
+        app(DemoCustomersSeeder::class)->setContainer(app())->__invoke();
+
+        $customers = User::query()->whereIn('email', DemoCustomersSeeder::emails())->get();
+
+        expect($customers)->toHaveCount(20)
+            ->and($customers->every(fn (User $u) => $u->getRoleNames()->all() === ['customer']))->toBeTrue()
+            ->and(Hash::check('password', $customers->first()->password))->toBeTrue();
+    });
+
+    test('the demo orders are created, with no emails and no broadcasts', function () {
+        Notification::fake();
+        Event::fake([OrderStatusChanged::class]);
+
+        app(DemoOrdersSeeder::class)->setContainer(app())->__invoke();
+
+        expect(demoOrders())->not->toBeEmpty();
+        Notification::assertNothingSent();
+        Event::assertNotDispatched(OrderStatusChanged::class);
+    });
+
+    test('staff demo accounts are still never seeded', function () {
+        app(DemoUserSeeder::class)->setContainer(app())->__invoke();
+
+        expect(User::query()->where('email', 'like', '%@tea-alley.test')->count())->toBe(0);
     });
 });

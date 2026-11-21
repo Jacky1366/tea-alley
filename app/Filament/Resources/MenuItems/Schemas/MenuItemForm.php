@@ -86,9 +86,12 @@ class MenuItemForm
                     ->image()
                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->maxSize(2048)
-                    ->disk('public')
+                    ->disk(fn (): string => MenuItem::photoDisk())
                     ->directory('menu-items')
-                    ->visibility('public')
+                    // The local public disk needs the file marked public. A Cloud bucket (an s3
+                    // disk) is public as a whole, and its docs say not to set per-file visibility:
+                    // "private" only means Filament doesn't try, and previews with a signed URL.
+                    ->visibility(fn (): string => config('filesystems.disks.'.MenuItem::photoDisk().'.driver') === 's3' ? 'private' : 'public')
                     ->columnSpanFull(),
                 CheckboxList::make('modifierGroups')
                     ->label('Modifier groups')

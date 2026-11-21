@@ -4,26 +4,48 @@ import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
 /*
- * Host and scheme come from the page at runtime, so the same build works on
- * https://tea-alley.test (wss) and on php -S http://127.0.0.1:8123 (ws). The port comes
- * from the build (VITE_REVERB_PORT; 8080 locally): on the page's own port we'd reach
- * Herd's nginx, not Reverb. A tunnel that routes /app/ to Reverb on the same host needs a
- * build with VITE_REVERB_PORT=443 (README, Troubleshooting).
+ * Where Reverb is. Two setups use the same code:
+ *
+ * - Laravel Cloud (#67): Reverb is a managed cluster on its own host. Cloud injects
+ *   VITE_REVERB_HOST / _SCHEME / _PORT (ws-...-reverb.laravel.cloud, https, 443), and the
+ *   build reads them, so they're used as given.
+ * - Local and the demo tunnel: no VITE_REVERB_HOST. Host and scheme come from the page at
+ *   runtime, so the same build works on https://tea-alley.test (wss), on php -S
+ *   http://127.0.0.1:8123 (ws), and through the tunnel. The port comes from the build
+ *   (VITE_REVERB_PORT; 8080 locally): on the page's own port we'd reach Herd's nginx, not
+ *   Reverb. A tunnel that routes /app/ to Reverb on the same host needs a build with
+ *   VITE_REVERB_PORT=443 (README, Troubleshooting).
  *
  * Without a key (a build without Reverb settings) Echo isn't started, and the pages
  * simply poll every 5 seconds.
  */
+export function reverbConnection(env, location) {
+    const port = Number(env.VITE_REVERB_PORT || 8080);
+
+    if (env.VITE_REVERB_HOST) {
+        return {
+            wsHost: env.VITE_REVERB_HOST,
+            wsPort: port,
+            wssPort: port,
+            forceTLS: (env.VITE_REVERB_SCHEME || 'https') === 'https',
+        };
+    }
+
+    return {
+        wsHost: location.hostname,
+        wsPort: port,
+        wssPort: port,
+        forceTLS: location.protocol === 'https:',
+    };
+}
+
 const key = import.meta.env.VITE_REVERB_APP_KEY;
-const port = Number(import.meta.env.VITE_REVERB_PORT || 8080);
 
 if (key) {
     window.Echo = new Echo({
         broadcaster: 'reverb',
         key,
-        wsHost: window.location.hostname,
-        wsPort: port,
-        wssPort: port,
-        forceTLS: window.location.protocol === 'https:',
+        ...reverbConnection(import.meta.env, window.location),
         enabledTransports: ['ws', 'wss'],
     });
 }

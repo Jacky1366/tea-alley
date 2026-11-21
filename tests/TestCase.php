@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Laravel\Fortify\Features;
 use Stripe\ApiRequestor;
@@ -23,6 +24,12 @@ abstract class TestCase extends BaseTestCase
         // breached". Tests that need another answer fake the same URL again.
         Http::preventStrayRequests();
         Http::fake(['api.pwnedpasswords.com/*' => Http::response('')]);
+
+        // Symfony keeps the trusted host patterns in a static. A test that switches to the
+        // production environment makes TrustHosts set them (from APP_URL), and without this the
+        // next test inherits them: middleware that reads the host before TrustHosts runs then
+        // rejects that test's host with a 400. Real requests start with none (#67).
+        Request::setTrustedHosts([]);
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

@@ -11,7 +11,8 @@ use Illuminate\Database\Seeder;
  * Gmail; these are for anyone whose verification email doesn't arrive. DemoOrdersSeeder
  * gives them their order history. Half English, half Traditional Chinese.
  *
- * Like DemoUserSeeder, never in production. Safe to run again: accounts are updated in place.
+ * Not in production, unless the environment opts in with TEA_ALLEY_DEMO_DATA=true (the Laravel
+ * Cloud demo, #67). Safe to run again: accounts are updated in place.
  */
 class DemoCustomersSeeder extends Seeder
 {
@@ -40,8 +41,8 @@ class DemoCustomersSeeder extends Seeder
 
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command?->warn('DemoCustomersSeeder skipped: it never runs in production.');
+        if (app()->isProduction() && ! config()->boolean('tea-alley.demo_data')) {
+            $this->command?->warn('DemoCustomersSeeder skipped: it runs in production only with TEA_ALLEY_DEMO_DATA=true.');
 
             return;
         }

@@ -25,7 +25,11 @@ class MenuItemsTable
             ->columns([
                 ImageColumn::make('photo_path')
                     ->label('Photo')
-                    ->disk('public')
+                    ->disk(fn (): string => MenuItem::photoDisk())
+                    // Public URLs on every photo disk (the bucket is public), never signed ones.
+                    ->visibility('public')
+                    // On a bucket, checking that each file exists is a network call per row.
+                    ->checkFileExistence(fn (): bool => config('filesystems.disks.'.MenuItem::photoDisk().'.driver') !== 's3')
                     ->square()
                     // Hidden on phones so the Available toggle fits without scrolling the table.
                     ->visibleFrom('md'),

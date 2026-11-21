@@ -6,7 +6,6 @@ use App\Services\SalesReport;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -98,7 +97,7 @@ new #[Layout('layouts::public')] #[Title('Menu')] class extends Component {
 
     public function photoUrl(MenuItem $item): ?string
     {
-        return $item->photo_path === null ? null : Storage::disk('public')->url($item->photo_path);
+        return $item->photoUrl();
     }
 
     /**
