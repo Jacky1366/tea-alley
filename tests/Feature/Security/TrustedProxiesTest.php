@@ -60,12 +60,29 @@ test('a visitor\'s own X-Forwarded-For through the tunnel doesn\'t replace the a
  */
 function trustProxiesFromEnv(?string $value): void
 {
-    $value === null ? putenv('TRUSTED_PROXIES') : putenv('TRUSTED_PROXIES='.$value);
+    // env() reads $_SERVER, then $_ENV, then getenv(); a .env with TRUSTED_PROXIES (CI copies
+    // .env.example) fills the first two, so all three are set, and restored afterwards.
+    $saved = [$_SERVER['TRUSTED_PROXIES'] ?? null, $_ENV['TRUSTED_PROXIES'] ?? null, getenv('TRUSTED_PROXIES')];
+    $set = function (?string $server, ?string $env, string|false $getenv): void {
+        if ($server === null) {
+            unset($_SERVER['TRUSTED_PROXIES']);
+        } else {
+            $_SERVER['TRUSTED_PROXIES'] = $server;
+        }
+        if ($env === null) {
+            unset($_ENV['TRUSTED_PROXIES']);
+        } else {
+            $_ENV['TRUSTED_PROXIES'] = $env;
+        }
+        $getenv === false ? putenv('TRUSTED_PROXIES') : putenv('TRUSTED_PROXIES='.$getenv);
+    };
+
+    $set($value, $value, $value ?? false);
 
     try {
         config(['tea-alley.trusted_proxies' => (require config_path('tea-alley.php'))['trusted_proxies']]);
     } finally {
-        putenv('TRUSTED_PROXIES');
+        $set(...$saved);
     }
 
     TrustedProxies::apply();
