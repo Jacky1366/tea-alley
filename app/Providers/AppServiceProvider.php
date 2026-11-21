@@ -81,6 +81,12 @@ class AppServiceProvider extends ServiceProvider
 
         TrustedProxies::apply();
 
+        // Livewire's temporary uploads (the /admin photo preview before Save) stay on the app's
+        // own disk. Unset, they'd follow the default disk, and on Laravel Cloud the only bucket is
+        // always the default (FILESYSTEM_DISK can't override it), so they'd go to R2 through
+        // signed browser uploads. Drink photos are saved to MENU_PHOTO_DISK (#69).
+        config(['livewire.temporary_file_upload.disk' => 'local']);
+
         // Livewire's update requests skip route middleware unless it's listed here. With this,
         // a page behind role:... (the barista board) checks the role on every action too, and a
         // page behind verified (checkout, orders) checks it too (T3-3). Livewire already

@@ -37,11 +37,15 @@ Create each one under **Resources** and attach it to the `main` environment.
 |---|---|---|
 | **Laravel MySQL** | Same region as the environment. Smallest Flex size. Backups: Dev preset. **Scale to zero: off during demo week** (step 8). | `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` and the rest of the connection |
 | **WebSocket cluster** (Reverb) | Resources → WebSockets → "+ New WebSocket cluster". **100 concurrent connections** ($5/month: 200K messages a day, 10 KB per message). Attach its app (default name `production`) to the environment. | `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST` (`ws-…-reverb.laravel.cloud`), `REVERB_PORT` (443), `REVERB_SCHEME` (https), and the frontend `VITE_REVERB_*` variables |
-| **Object storage bucket** | Visibility: **Public** (fixed at creation). **Disk name: `photos`**. **Not** the environment's default disk. Jurisdiction / location hint: closest to Vancouver (fixed at creation). | The `photos` filesystem disk (Cloud defines it itself; no `AWS_*` variables needed) |
+| **Object storage bucket** | Visibility: **Public** (fixed at creation). **Disk name: `photos`**. Cloud makes it the environment's default disk (see below). Jurisdiction / location hint: closest to Vancouver (fixed at creation). | The `photos` filesystem disk (Cloud defines it itself; no `AWS_*` variables needed) |
 
 No cache resource: sessions and cache use the database (step 3), which the deploy guide recommends for light workloads.
 
-Why the bucket must not be the default disk: Livewire's temporary uploads go to the default disk. Keeping it `local` keeps them on the app's own disk, which is fine with one replica. Photos go to the bucket through `MENU_PHOTO_DISK`.
+The bucket is the default disk, and that's fine. With only one bucket attached, Cloud always makes it the environment's default disk, and `FILESYSTEM_DISK` can't override that, so don't set it. The app doesn't rely on the default disk:
+- Drink photos are saved to `MENU_PHOTO_DISK`.
+- Livewire's temporary uploads (the `/admin` photo preview before Save) are pinned to the app's `local` disk in `AppServiceProvider` (#69). Otherwise they would go to R2 through signed browser uploads.
+
+Keeping them on the local disk works with one replica: the upload and the Save land on the same instance.
 
 ## 3. Environment variables
 
@@ -58,7 +62,6 @@ Environment → Settings → Environment variables. Custom variables override in
 | `APP_LOCALE` / `APP_FALLBACK_LOCALE` | `en` / `en` | |
 | `TRUSTED_PROXIES` | `REMOTE_ADDR` | #67. Never `*`. |
 | `MENU_PHOTO_DISK` | `photos` | The bucket's disk name from step 2 |
-| `FILESYSTEM_DISK` | `local` | Keeps Livewire's temporary uploads off the bucket |
 | `TEA_ALLEY_DEMO_DATA` | `true` | Demo week only; lets the demo seeders run (step 5). Remove after the demo. |
 | `SESSION_DRIVER` / `CACHE_STORE` / `QUEUE_CONNECTION` | `database` / `database` / `database` | Today's values. No worker is needed: nothing is queued. |
 | `BROADCAST_CONNECTION` | `reverb` | |
@@ -77,7 +80,7 @@ Environment → Settings → Environment variables. Custom variables override in
 | `STRIPE_SECRET` | *secret* | A **restricted** test-mode key (`rk_test_…`) with only **Checkout Sessions: Write**, made in the Stripe Dashboard (Developers → API keys → Create restricted key). Not the `sk_test_` key. The checkout page shows the 4242 test-card hint for either test key. |
 | `STRIPE_WEBHOOK_SECRET` | *secret* | The Dashboard endpoint's signing secret (step 6), not the `stripe listen` one |
 
-Leave unset: `REVERB_SERVER_HOST` / `REVERB_SERVER_PORT` (only for running Reverb yourself), `LOG_CHANNEL` (Cloud configures its own log channel), `SESSION_SECURE_COOKIE` (secure by default in production), all `AWS_*`.
+Leave unset: `REVERB_SERVER_HOST` / `REVERB_SERVER_PORT` (only for running Reverb yourself), `LOG_CHANNEL` (Cloud configures its own log channel), `SESSION_SECURE_COOKIE` (secure by default in production), all `AWS_*`, `FILESYSTEM_DISK` (Cloud fixes the default disk while a bucket is attached; see step 2).
 
 Secret values can also be organization **Secrets** attached to the environment (`secrets.md`).
 
@@ -109,7 +112,7 @@ Nothing else: Cloud doesn't keep changes made by deploy commands (so no `storage
 ## 5. First deploy, then the one-time commands
 
 1. **Deploy** (or push to `main`). Wait for it to go live, then open the `*.laravel.cloud` URL Cloud assigned. Check that `APP_URL` in the variables is that URL. If it isn't, set it and redeploy: links in emails use `APP_URL`, and TrustHosts accepts only its host.
-   - If the first deploy fails its **health check** with HTTP 400: Cloud's probe hits the app directly, and TrustHosts rejects any host but `APP_URL`'s. The docs don't say which host the probe sends. The fix is a small code change (exempt `/up` from TrustHosts), made only if this happens.
+   - The first Cloud deploy (2026-11-20) passed its **health check** with TrustHosts on. The `/up` exemption this step used to hold in reserve isn't needed.
 2. Open **Commands → Open console** (interactive; transcripts are kept in the Commands history) and run, in order:
 
    ```
