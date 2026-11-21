@@ -45,7 +45,9 @@ use RuntimeException;
  *   cancelled) by now, so the barista board stays empty for the live demo.
  * - A fixed random seed: the same "now" gives the same orders (order numbers aside, which
  *   OrderService draws at random).
- * - Local (and tests) only; anywhere else it stops with the reason.
+ * - Local (and tests) only, unless the environment opts in with TEA_ALLEY_DEMO_DATA=true
+ *   (the Laravel Cloud demo, #67); anywhere else it stops with the reason. The ordering
+ *   window applies there too: set the store hours in /admin first.
  */
 class DemoOrdersSeeder extends Seeder
 {
@@ -107,9 +109,9 @@ class DemoOrdersSeeder extends Seeder
 
     public function run(): void
     {
-        if (! app()->environment(['local', 'testing'])) {
+        if (! app()->environment(['local', 'testing']) && ! config()->boolean('tea-alley.demo_data')) {
             throw new RuntimeException(sprintf(
-                'DemoOrdersSeeder only runs in the local environment (APP_ENV is "%s"). Seed while local, then switch to production.',
+                'DemoOrdersSeeder only runs in the local environment (APP_ENV is "%s") unless TEA_ALLEY_DEMO_DATA=true. Seed while local, then switch to production.',
                 app()->environment(),
             ));
         }

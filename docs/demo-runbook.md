@@ -1,5 +1,7 @@
 # Demo runbook
 
+> **Laravel Cloud is the primary demo path (`docs/cloud-deploy.md`, #67). This tunnel is the fallback.**
+
 How to put Tea Alley on the internet for phones (classmates on 4G, PWA), and how to go back to local development. Decided in #57; the reasons are in `docs/decisions.md`.
 
 ## How it works

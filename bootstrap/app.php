@@ -33,12 +33,13 @@ return Application::configure(basePath: dirname(__DIR__))
             return is_string($host) ? ['^'.preg_quote($host).'$'] : [];
         }, subdomains: false);
 
-        // T3-3: the demo tunnel's client runs on this machine and connects to Herd locally, so
-        // only a local process can be the proxy. Trusting just loopback means a visitor's own
-        // X-Forwarded-* headers are never believed, while the tunnel's are: request()->ip() is
-        // the visitor (login throttling), and secure()/url() see https. Never '*'.
+        // T3-3: only the proxy may say who the visitor is, so a visitor's own X-Forwarded-*
+        // headers are never believed, while the proxy's are: request()->ip() is the visitor
+        // (rate limits), and secure()/url() see https. WHICH proxies is config, applied when
+        // the app boots (App\Support\TrustedProxies, #67): loopback by default (local dev and
+        // the demo tunnel, whose client runs on this machine), REMOTE_ADDR on Laravel Cloud.
+        // Never '*': see config/tea-alley.php.
         $middleware->trustProxies(
-            at: ['127.0.0.1', '::1'],
             headers: Request::HEADER_X_FORWARDED_FOR
                 | Request::HEADER_X_FORWARDED_HOST
                 | Request::HEADER_X_FORWARDED_PORT

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\PaymentGateway;
 use App\Services\Payments\FakePaymentGateway;
 use App\Services\Payments\StripePaymentGateway;
+use App\Support\TrustedProxies;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Contracts\Foundation\Application;
@@ -77,6 +78,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        TrustedProxies::apply();
 
         // Livewire's update requests skip route middleware unless it's listed here. With this,
         // a page behind role:... (the barista board) checks the role on every action too, and a

@@ -9,5 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Backup for Stripe's "expired" webhook. Needs the scheduler: `php artisan schedule:work`
-// locally, a cron entry for `schedule:run` in production.
+// locally, Cloud's Scheduler toggle on Laravel Cloud (docs/cloud-deploy.md), or a cron entry
+// for `schedule:run` elsewhere.
 Schedule::command('orders:cancel-stale')->everyFiveMinutes();
